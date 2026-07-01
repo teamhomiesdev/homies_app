@@ -14,7 +14,7 @@ const SplashScreen = ({ navigation }: any) => {
         index: 0,
         routes: [{ name: rootScreen }],
       });
-    }, 5000);
+    }, 2000);
 
     return () => clearTimeout(timer);
   }, []);
