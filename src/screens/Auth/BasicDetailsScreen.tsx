@@ -5,23 +5,28 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useDispatch } from 'react-redux';
-import {
-  setAuthScreen,
-  setLoginStatus,
-  setRootScreen,
-} from '../../redux/slices/authSlice';
+import { useDispatch, useSelector } from 'react-redux';
 import colors from '../../theme/colors';
 import Input from '../../components/Input/Input';
 import CommonButton from '../../components/Button/Button';
 
+// Import our custom action thunk and custom toast notifier
+import { registerAction } from '../../redux/actions/authActions';
+import { showToast } from '../../components/Toast/Toast';
+
 const AGE_BRACKETS = ['18-24', '25-34', '35-44', '45-54', '55-64', '65+'];
 
 const BasicDetailsScreen = ({ navigation }: any) => {
-  const dispatch = useDispatch();
+  const dispatch = useDispatch<any>();
+  
+  // Extract cached google profile details from store
+  const googleProfileCache = useSelector((state: any) => state.auth.googleProfileCache);
+
   const [step, setStep] = useState(0);
+  const [loading, setLoading] = useState(false);
   const [activeTimeField, setActiveTimeField] = useState<'start' | 'end'>('start');
 
   const [startHour, setStartHour] = useState(9);
@@ -42,83 +47,64 @@ const BasicDetailsScreen = ({ navigation }: any) => {
     workDescription: '',
   });
 
-  const updateField = (key: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [key]: value }));
+  // Dynamic state verification logic checking fields before letting users advance
+  const isButtonDisabled = () => {
+    if (step === 0) return !formData.age;
+    if (step === 1) return !formData.city || !formData.state || !formData.country;
+    if (step === 2) return !formData.mobileNumber || formData.mobileNumber.length < 10;
+    if (step === 3) return !formData.profession;
+    if (step === 4) return false; // Time selector wizard step is prefilled by default state values
+    if (step === 5) return !formData.workDescription;
+    return false;
   };
 
-  const formatDisplayTime = (h: number, m: number, ampm: 'AM' | 'PM') => {
-    const hrStr = h < 10 ? `0${h}` : `${h}`;
-    const minStr = m < 10 ? `0${m}` : `${m}`;
-    return `${hrStr}:${minStr} ${ampm}`;
+  // Helper date assembly logic to format a valid ISO Date string
+  const generateIsoTimestamp = (hour: number, minute: number, ampm: 'AM' | 'PM') => {
+    let hr24 = hour;
+    if (ampm === 'PM' && hour !== 12) hr24 += 12;
+    if (ampm === 'AM' && hour === 12) hr24 = 0;
+    
+    const targetDate = new Date();
+    targetDate.setHours(hr24, minute, 0, 0);
+    return targetDate.toISOString();
   };
 
-  const get24Hour = (h: number, ampm: 'AM' | 'PM') => {
-    let hour24 = h;
-    if (ampm === 'PM' && h !== 12) hour24 += 12;
-    if (ampm === 'AM' && h === 12) hour24 = 0;
-    return hour24;
-  };
-
-  const calculateHours = (): string => {
-    const start24 = get24Hour(startHour, startAmPm) + startMinute / 60;
-    const end24 = get24Hour(endHour, endAmPm) + endMinute / 60;
-    let diff = end24 - start24;
-    if (diff < 0) diff += 24;
-    return diff.toFixed(1);
-  };
-
-  const adjustHour = (amount: number) => {
-    if (activeTimeField === 'start') {
-      setStartHour((prev) => {
-        let next = prev + amount;
-        if (next > 12) return 1;
-        if (next < 1) return 12;
-        return next;
-      });
-    } else {
-      setEndHour((prev) => {
-        let next = prev + amount;
-        if (next > 12) return 1;
-        if (next < 1) return 12;
-        return next;
-      });
-    }
-  };
-
-  const adjustMinute = (amount: number) => {
-    if (activeTimeField === 'start') {
-      setStartMinute((prev) => {
-        let next = prev + amount;
-        if (next >= 60) return 0;
-        if (next < 0) return 45;
-        return next;
-      });
-    } else {
-      setEndMinute((prev) => {
-        let next = prev + amount;
-        if (next >= 60) return 0;
-        if (next < 0) return 45;
-        return next;
-      });
-    }
-  };
-
-  const toggleAmPm = () => {
-    if (activeTimeField === 'start') {
-      setStartAmPm((prev) => (prev === 'AM' ? 'PM' : 'AM'));
-    } else {
-      setEndAmPm((prev) => (prev === 'AM' ? 'PM' : 'AM'));
-    }
-  };
-
-  const handleNext = () => {
+  const handleNext = async () => {
     if (step < 5) {
       setStep(step + 1);
     } else {
-      navigation.navigate('FaceVerification');
-      dispatch(setRootScreen('AuthNavigator'));
-      dispatch(setAuthScreen('FaceVerification'));
-      dispatch(setLoginStatus(false));
+      setLoading(true);
+      try {
+        const payload = {
+          email: googleProfileCache?.email || "teamhomiesdev@mailinator.com",
+          platform: "google",
+          firstName: googleProfileCache?.firstName || "Vasanth",
+          dob: "2008-03-11T06:35:00.000Z", // Static requirement placeholder
+          city: formData.city,
+          state: formData.state,
+          country: formData.country,
+          mobileNumber: formData.mobileNumber,
+          profession: formData.profession,
+          workTiming: generateIsoTimestamp(startHour, startMinute, startAmPm),
+          typeOfWork: formData.workDescription,
+        };
+
+        const result = await dispatch(registerAction(payload));
+        setLoading(false);
+
+        if (result.success) {
+          // Fire success toast notification once basic profiling wraps up
+          showToast("Basic details completed! Registration successful.", "success", 3500);
+          
+          // Navigates directly to the dynamic landing screen calculated inside Redux action conditional checks
+          navigation.navigate(result.targetScreen);
+        } else {
+          showToast(result.error || 'Failed to complete registration onboarding.', "error");
+        }
+      } catch (err: any) {
+        setLoading(false);
+        showToast(err.message || 'An unexpected networking problem occurred.', "error");
+      }
     }
   };
 
@@ -130,134 +116,151 @@ const BasicDetailsScreen = ({ navigation }: any) => {
     }
   };
 
-  const isButtonDisabled = () => {
-    if (step === 0) return !formData.age;
-    if (step === 1) return !formData.city || !formData.state || !formData.country;
-    if (step === 2) return formData.mobileNumber.length !== 10 || !/^\d+$/.test(formData.mobileNumber);
-    if (step === 3) return !formData.profession;
-    if (step === 5) return !formData.workDescription;
-    return false;
+  const adjustHour = (type: 'up' | 'down') => {
+    if (activeTimeField === 'start') {
+      setStartHour(prev => (type === 'up' ? (prev === 12 ? 1 : prev + 1) : (prev === 1 ? 12 : prev - 1)));
+    } else {
+      setEndHour(prev => (type === 'up' ? (prev === 12 ? 1 : prev + 1) : (prev === 1 ? 12 : prev - 1)));
+    }
   };
+
+  const adjustMinute = (type: 'up' | 'down') => {
+    if (activeTimeField === 'start') {
+      setStartMinute(prev => (type === 'up' ? (prev === 59 ? 0 : prev + 1) : (prev === 0 ? 59 : prev - 1)));
+    } else {
+      setEndMinute(prev => (type === 'up' ? (prev === 59 ? 0 : prev + 1) : (prev === 0 ? 59 : prev - 1)));
+    }
+  };
+
+  const toggleAmPm = () => {
+    if (activeTimeField === 'start') {
+      setStartAmPm(prev => (prev === 'AM' ? 'PM' : 'AM'));
+    } else {
+      setEndAmPm(prev => (prev === 'AM' ? 'PM' : 'AM'));
+    }
+  };
+
+  const currentHour = activeTimeField === 'start' ? startHour : endHour;
+  const currentMinute = activeTimeField === 'start' ? startMinute : endMinute;
+  const currentAmPm = activeTimeField === 'start' ? startAmPm : endAmPm;
 
   return (
     <SafeAreaView edges={['top', 'bottom', 'left', 'right']} style={styles.container}>
+      {/* Header Container */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={handleBack} activeOpacity={0.7} style={styles.closeButton}>
-          <Text style={styles.closeText}>✕</Text>
-        </TouchableOpacity>
-        <View style={styles.progressTrack}>
-          <View style={[styles.progressBar, { width: `${((step + 1) / 6) * 100}%` }]} />
+        <View style={styles.progressBarBg}>
+          <View style={[styles.progressBarFill, { width: `${((step + 1) / 6) * 100}%` }]} />
         </View>
+        <Text style={styles.stepIndicator}>{step + 1}/6</Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         {step === 0 && (
-          <View>
-            <Text style={styles.title}>What's your age?</Text>
-            <Text style={styles.subtitle}>Mandatory: Select your age bracket.</Text>
-            <View style={styles.optionsContainer}>
-              {AGE_BRACKETS.map((bracket) => {
-                const isSelected = formData.age === bracket;
-                return (
-                  <TouchableOpacity
-                    key={bracket}
-                    activeOpacity={0.8}
-                    onPress={() => updateField('age', bracket)}
-                    style={[styles.cardOption, isSelected && styles.cardOptionSelected]}
-                  >
-                    <Text style={[styles.cardOptionText, isSelected && styles.cardOptionTextSelected]}>
-                      {bracket}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
+          <View style={styles.stepContainer}>
+            <Text style={styles.title}>What's your age bracket?</Text>
+            <Text style={styles.subtitle}>This helps us customize your ecosystem view.</Text>
+            <View style={styles.ageGrid}>
+              {AGE_BRACKETS.map(item => (
+                <TouchableOpacity
+                  key={item}
+                  style={[styles.ageCard, formData.age === item && styles.ageCardActive]}
+                  onPress={() => setFormData({ ...formData, age: item })}
+                >
+                  <Text style={[styles.ageText, formData.age === item && styles.ageTextActive]}>{item}</Text>
+                </TouchableOpacity>
+              ))}
             </View>
           </View>
         )}
 
         {step === 1 && (
-          <View>
-            <Text style={styles.title}>Location Details</Text>
+          <View style={styles.stepContainer}>
+            <Text style={styles.title}>Where are you located?</Text>
+            <Text style={styles.subtitle}>Please provide your residential region attributes.</Text>
             <Input
-              placeholder="City"
-              value={formData.city}
-              onChangeText={(text) => updateField('city', text)}
-              containerStyle={styles.inputSpacing}
+              placeholder="Country"
+              value={formData.country}
+              onChangeText={text => setFormData({ ...formData, country: text })}
+              containerStyle={styles.inputMargin}
             />
             <Input
               placeholder="State"
               value={formData.state}
-              onChangeText={(text) => updateField('state', text)}
-              containerStyle={styles.inputSpacing}
+              onChangeText={text => setFormData({ ...formData, state: text })}
+              containerStyle={styles.inputMargin}
             />
             <Input
-              placeholder="Country"
-              value={formData.country}
-              onChangeText={(text) => updateField('country', text)}
-              containerStyle={styles.inputSpacing}
+              placeholder="City"
+              value={formData.city}
+              onChangeText={text => setFormData({ ...formData, city: text })}
+              containerStyle={styles.inputMargin}
             />
           </View>
         )}
 
         {step === 2 && (
-          <View>
-            <Text style={styles.title}>Mobile Number</Text>
+          <View style={styles.stepContainer}>
+            <Text style={styles.title}>What's your mobile number?</Text>
+            <Text style={styles.subtitle}>Used securely to safeguard account operations.</Text>
             <Input
-              type="phone"
-              placeholder="10-digit number"
+              placeholder="Mobile Number"
               value={formData.mobileNumber}
-              maxLength={10}
-              onChangeText={(text) => updateField('mobileNumber', text.replace(/[^0-9]/g, ''))}
-              containerStyle={styles.inputSpacing}
+              keyboardType="phone-pad"
+              maxLength={15}
+              onChangeText={text => setFormData({ ...formData, mobileNumber: text })}
+              containerStyle={styles.inputMargin}
             />
           </View>
         )}
 
         {step === 3 && (
-          <View>
-            <Text style={styles.title}>Profession</Text>
+          <View style={styles.stepContainer}>
+            <Text style={styles.title}>What is your profession?</Text>
+            <Text style={styles.subtitle}>Let our network entities know what your job area is.</Text>
             <Input
-              placeholder="Software Engineer, Doctor, etc."
+              placeholder="Profession"
               value={formData.profession}
-              onChangeText={(text) => updateField('profession', text)}
-              containerStyle={styles.inputSpacing}
+              onChangeText={text => setFormData({ ...formData, profession: text })}
+              containerStyle={styles.inputMargin}
             />
           </View>
         )}
 
         {step === 4 && (
-          <View>
-            <Text style={styles.title}>Work Timing</Text>
+          <View style={styles.stepContainer}>
+            <Text style={styles.title}>Select your work timing</Text>
+            <Text style={styles.subtitle}>Configure active time boundaries for your availability.</Text>
             
-            <View style={styles.tabsRow}>
+            <View style={styles.timeTabsRow}>
               <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={() => setActiveTimeField('start')}
                 style={[styles.timeTab, activeTimeField === 'start' && styles.timeTabActive]}
+                onPress={() => setActiveTimeField('start')}
               >
                 <Text style={styles.timeLabel}>Start Time</Text>
-                <Text style={styles.timeValue}>{formatDisplayTime(startHour, startMinute, startAmPm)}</Text>
+                <Text style={styles.timeValue}>
+                  {String(startHour).padStart(2, '0')}:{String(startMinute).padStart(2, '0')} {startAmPm}
+                </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={() => setActiveTimeField('end')}
                 style={[styles.timeTab, activeTimeField === 'end' && styles.timeTabActive]}
+                onPress={() => setActiveTimeField('end')}
               >
                 <Text style={styles.timeLabel}>End Time</Text>
-                <Text style={styles.timeValue}>{formatDisplayTime(endHour, endMinute, endAmPm)}</Text>
+                <Text style={styles.timeValue}>
+                  {String(endHour).padStart(2, '0')}:{String(endMinute).padStart(2, '0')} {endAmPm}
+                </Text>
               </TouchableOpacity>
             </View>
 
+            {/* Time Picker Controls Widget */}
             <View style={styles.pickerWidget}>
               <View style={styles.pickerColumn}>
-                <TouchableOpacity onPress={() => adjustHour(1)} style={styles.adjustBtn}>
+                <TouchableOpacity style={styles.adjustBtn} onPress={() => adjustHour('up')}>
                   <Text style={styles.adjustBtnText}>▲</Text>
                 </TouchableOpacity>
-                <Text style={styles.pickerNumber}>
-                  {activeTimeField === 'start' ? startHour : endHour}
-                </Text>
-                <TouchableOpacity onPress={() => adjustHour(-1)} style={styles.adjustBtn}>
+                <Text style={styles.pickerNumber}>{String(currentHour).padStart(2, '0')}</Text>
+                <TouchableOpacity style={styles.adjustBtn} onPress={() => adjustHour('down')}>
                   <Text style={styles.adjustBtnText}>▼</Text>
                 </TouchableOpacity>
               </View>
@@ -265,53 +268,51 @@ const BasicDetailsScreen = ({ navigation }: any) => {
               <Text style={styles.pickerSeparator}>:</Text>
 
               <View style={styles.pickerColumn}>
-                <TouchableOpacity onPress={() => adjustMinute(15)} style={styles.adjustBtn}>
+                <TouchableOpacity style={styles.adjustBtn} onPress={() => adjustMinute('up')}>
                   <Text style={styles.adjustBtnText}>▲</Text>
                 </TouchableOpacity>
-                <Text style={styles.pickerNumber}>
-                  {activeTimeField === 'start' 
-                    ? (startMinute < 10 ? `0${startMinute}` : startMinute)
-                    : (endMinute < 10 ? `0${endMinute}` : endMinute)}
-                </Text>
-                <TouchableOpacity onPress={() => adjustMinute(-15)} style={styles.adjustBtn}>
+                <Text style={styles.pickerNumber}>{String(currentMinute).padStart(2, '0')}</Text>
+                <TouchableOpacity style={styles.adjustBtn} onPress={() => adjustMinute('down')}>
                   <Text style={styles.adjustBtnText}>▼</Text>
                 </TouchableOpacity>
               </View>
 
               <View style={styles.pickerColumn}>
-                <TouchableOpacity onPress={toggleAmPm} style={styles.ampmBtn}>
-                  <Text style={styles.ampmBtnText}>
-                    {activeTimeField === 'start' ? startAmPm : endAmPm}
-                  </Text>
+                <TouchableOpacity style={styles.ampmBtn} onPress={toggleAmPm}>
+                  <Text style={styles.ampmBtnText}>{currentAmPm}</Text>
                 </TouchableOpacity>
               </View>
             </View>
-
-            <Text style={styles.shiftCalculation}>Total Work Shift: {calculateHours()} hours</Text>
           </View>
         )}
 
         {step === 5 && (
-          <View>
-            <Text style={styles.title}>Work Description</Text>
+          <View style={styles.stepContainer}>
+            <Text style={styles.title}>Describe your type of work</Text>
+            <Text style={styles.subtitle}>Provide a short description of what you do daily.</Text>
             <Input
-              placeholder="Briefly describe what you do..."
+              placeholder="Type of work description..."
               value={formData.workDescription}
-              onChangeText={(text) => updateField('workDescription', text)}
-              containerStyle={styles.inputSpacing}
+              onChangeText={text => setFormData({ ...formData, workDescription: text })}
+              multiline={true}
             />
           </View>
         )}
       </ScrollView>
 
+      {/* Footer Action Bar */}
       <View style={styles.footer}>
-        <CommonButton
-          text={step === 5 ? 'Finish' : 'Continue'}
-          onPress={handleNext}
-          disabled={isButtonDisabled()}
-          backgroundColor={isButtonDisabled() ? '#2E3B1E' : colors.primary}
-          textColor={isButtonDisabled() ? '#5A6350' : colors.black}
-        />
+        {loading ? (
+          <ActivityIndicator size="large" color={colors.primary} />
+        ) : (
+          <CommonButton
+            text={step === 5 ? 'Finish' : 'Continue'}
+            onPress={handleNext}
+            disabled={isButtonDisabled()}
+            backgroundColor={isButtonDisabled() ? '#2E3B1E' : colors.primary}
+            textColor={isButtonDisabled() ? '#5A6350' : colors.black}
+          />
+        )}
       </View>
     </SafeAreaView>
   );
@@ -322,80 +323,94 @@ export default BasicDetailsScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.black_1,
+    backgroundColor: colors.black,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    gap: 16,
   },
-  closeButton: {
+  backButton: {
     padding: 8,
-    marginRight: 12,
   },
-  closeText: {
+  backButtonText: {
     color: colors.white,
     fontSize: 24,
-    fontWeight: '300',
+    fontWeight: '700',
   },
-  progressTrack: {
+  progressBarBg: {
     flex: 1,
-    height: 4,
+    height: 6,
     backgroundColor: '#1C1C1E',
-    borderRadius: 2,
+    borderRadius: 3,
     overflow: 'hidden',
   },
-  progressBar: {
+  progressBarFill: {
     height: '100%',
     backgroundColor: colors.primary,
+    borderRadius: 3,
+  },
+  stepIndicator: {
+    color: colors.gray_2,
+    fontSize: 14,
+    fontWeight: '600',
   },
   scrollContent: {
     paddingHorizontal: 24,
-    paddingTop: 24,
+    paddingTop: 16,
     paddingBottom: 40,
+  },
+  stepContainer: {
+    flex: 1,
   },
   title: {
     color: colors.white,
     fontSize: 32,
-    fontWeight: '700',
-    marginBottom: 8,
+    fontWeight: '800',
+    lineHeight: 40,
+    marginBottom: 12,
   },
   subtitle: {
     color: colors.gray_2,
     fontSize: 16,
-    marginBottom: 28,
+    lineHeight: 24,
+    marginBottom: 32,
   },
-  optionsContainer: {
-    gap: 14,
+  ageGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
   },
-  cardOption: {
+  ageCard: {
+    width: '48%',
     backgroundColor: '#121212',
     borderWidth: 1,
     borderColor: '#1C1C1E',
     borderRadius: 16,
-    paddingVertical: 22,
-    paddingHorizontal: 20,
+    paddingVertical: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  cardOptionSelected: {
+  ageCardActive: {
     borderColor: colors.primary,
     backgroundColor: '#1A2414',
   },
-  cardOptionText: {
-    color: colors.white,
+  ageText: {
+    color: colors.gray_2,
     fontSize: 18,
-    fontWeight: '500',
+    fontWeight: '700',
   },
-  cardOptionTextSelected: {
+  ageTextActive: {
     color: colors.primary,
   },
-  inputSpacing: {
-    marginTop: 12,
+  inputMargin: {
     marginBottom: 16,
   },
-  tabsRow: {
+  timeTabsRow: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 16,
     marginBottom: 24,
   },
   timeTab: {
@@ -454,29 +469,23 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontSize: 32,
     fontWeight: '700',
-    bottom: 2,
   },
   ampmBtn: {
     backgroundColor: '#1C1C1E',
+    paddingHorizontal: 16,
     paddingVertical: 12,
-    paddingHorizontal: 14,
     borderRadius: 12,
   },
   ampmBtnText: {
-    color: colors.primary,
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  shiftCalculation: {
-    color: colors.primary,
+    color: colors.white,
     fontSize: 16,
-    fontWeight: '500',
-    textAlign: 'center',
-    marginTop: 24,
+    fontWeight: '700',
   },
   footer: {
     paddingHorizontal: 24,
     paddingVertical: 20,
-    backgroundColor: colors.black_1,
+    borderTopWidth: 1,
+    borderTopColor: '#1C1C1E',
+    backgroundColor: colors.black,
   },
 });

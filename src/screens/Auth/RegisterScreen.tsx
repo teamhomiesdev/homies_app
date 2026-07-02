@@ -9,64 +9,103 @@ import {
   Dimensions,
   NativeSyntheticEvent,
   NativeScrollEvent,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch } from 'react-redux';
-import {
-  setAuthScreen,
-  setLoginStatus,
-  setRootScreen,
-} from '../../redux/slices/authSlice';
 import colors from '../../theme/colors';
 import CommonButton from '../../components/Button/Button';
 import images from '../../theme/images';
-import Google from "../../assets/svg/google.svg";
+import Google from '../../assets/svg/google.svg';
+import {
+  GoogleSignin,
+  statusCodes,
+} from '@react-native-google-signin/google-signin';
+import { setGoogleProfileCache } from '../../redux/slices/authSlice';
+import { showToast } from '../../components/Toast/Toast';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const CAROUSEL_DATA = [
   { id: '1', image: images.loginBanner },
-  { id: '2', image: images.loginBanner }, 
+  { id: '2', image: images.loginBanner },
 ];
 
 const RegisterScreen = ({ navigation }: any) => {
-  const dispatch = useDispatch();
+  const dispatch = useDispatch<any>(); // typed as any or ThunkDispatch depending on configuration
   const [activeIndex, setActiveIndex] = useState(0);
   const flatListRef = useRef<FlatList>(null);
 
-  // Auto-scroll loop effect
+  useEffect(() => {
+    GoogleSignin.configure({
+      webClientId:
+        '511277179417-avfupmlk5pjb2qjgc1fhmp89n905a10f.apps.googleusercontent.com',
+      offlineAccess: true,
+    });
+  }, []);
+
   useEffect(() => {
     const timer = setInterval(() => {
-      const nextIndex = activeIndex === CAROUSEL_DATA.length - 1 ? 0 : activeIndex + 1;
-
+      const nextIndex =
+        activeIndex === CAROUSEL_DATA.length - 1 ? 0 : activeIndex + 1;
       flatListRef.current?.scrollToIndex({
         index: nextIndex,
         animated: true,
       });
-
       setActiveIndex(nextIndex);
-    }, 3000); // Changes slide every 3 seconds
+    }, 3000);
 
     return () => clearInterval(timer);
   }, [activeIndex]);
 
-  // Track page changes accurately only when swiping animation stops completely
-  const handleMomentumScrollEnd = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+  const handleMomentumScrollEnd = (
+    event: NativeSyntheticEvent<NativeScrollEvent>,
+  ) => {
     const scrollPosition = event.nativeEvent.contentOffset.x;
     const currentIndex = Math.round(scrollPosition / SCREEN_WIDTH);
     setActiveIndex(currentIndex);
   };
 
-  const handleRegister = () => {
-    navigation.navigate('BasicDetails');
-    dispatch(setRootScreen('AuthNavigator'));
-    dispatch(setAuthScreen('BasicDetails'));
-    dispatch(setLoginStatus(false));
+  const handleGoogleRegister = async () => {
+    try {
+      await GoogleSignin.hasPlayServices();
+      const response = await GoogleSignin.signIn();
+      const userInfo = response.data;
+
+      if (!userInfo || !userInfo.user) {
+        throw new Error(
+          'Google authentication returned an empty identity profile.',
+        );
+      }
+
+      // Save user fields cleanly to our temporary store cache
+      dispatch(
+        setGoogleProfileCache({
+          email: userInfo.user.email,
+          firstName: userInfo.user.givenName || userInfo.user.name || 'Vasanth',
+        }),
+      );
+
+      showToast("Google Login Success! Please fill out your basic details to complete registration.", "success", 4000);
+      // Direct page navigation transition
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'BasicDetails' }],
+      });
+    } catch (error: any) {
+      if (error.code === statusCodes.SIGN_IN_CANCELLED) {
+        console.log('User cancelled the login flow');
+      } else {
+        Alert.alert(
+          'Authentication Error',
+          error.message || 'Something went wrong.',
+        );
+      }
+    }
   };
 
   return (
     <View style={styles.container}>
-      {/* Auto Scrolling Image Slider */}
       <View style={styles.imageContainer}>
         <FlatList
           ref={flatListRef}
@@ -80,7 +119,7 @@ const RegisterScreen = ({ navigation }: any) => {
             offset: SCREEN_WIDTH * index,
             index,
           })}
-          keyExtractor={(item) => item.id}
+          keyExtractor={item => item.id}
           renderItem={({ item }) => (
             <View style={styles.carouselItem}>
               <Image
@@ -91,8 +130,6 @@ const RegisterScreen = ({ navigation }: any) => {
             </View>
           )}
         />
-
-        {/* Dynamic Carousel Indicators */}
         <View style={styles.dotsContainer}>
           {CAROUSEL_DATA.map((_, index) => (
             <View
@@ -106,38 +143,32 @@ const RegisterScreen = ({ navigation }: any) => {
         </View>
       </View>
 
-      {/* Bottom Sheet Card */}
-      <SafeAreaView edges={['bottom', 'left', 'right']} style={styles.bottomContainer}>
-        <Text style={styles.title}>
-          Join{'\n'}
-          Us.
-        </Text>
-
+      <SafeAreaView
+        edges={['bottom', 'left', 'right']}
+        style={styles.bottomContainer}
+      >
+        <Text style={styles.title}>Join{'\n'}Us.</Text>
         <Text style={styles.subtitle}>
           Start your journey with just one click.
         </Text>
-
-        {/* Google Registration Button */}
         <CommonButton
           text="Register"
           backgroundColor={colors.white}
           textColor={colors.black}
-          leftIcon={<Google width={20} height={20}/>}
+          leftIcon={<Google width={20} height={20} />}
           style={styles.googleButtonCustom}
           textStyle={styles.googleButtonTextCustom}
-          onPress={handleRegister}
+          onPress={handleGoogleRegister}
         />
-
-        {/* Footer Navigation Back to Login */}
         <View style={styles.footer}>
           <Text style={styles.footerText}>Already have an account? </Text>
           <TouchableOpacity
-            onPress={() => {
+            onPress={() =>
               navigation.reset({
                 index: 0,
                 routes: [{ name: 'AuthNavigator' }],
-              });
-            }}
+              })
+            }
           >
             <Text style={styles.loginText}>Log In</Text>
           </TouchableOpacity>
@@ -150,22 +181,10 @@ const RegisterScreen = ({ navigation }: any) => {
 export default RegisterScreen;
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.black,
-  },
-  imageContainer: {
-    flex: 0.48,
-    position: 'relative',
-  },
-  carouselItem: {
-    width: SCREEN_WIDTH,
-    height: '100%',
-  },
-  banner: {
-    width: '100%',
-    height: '100%',
-  },
+  container: { flex: 1, backgroundColor: colors.black },
+  imageContainer: { flex: 0.48, position: 'relative' },
+  carouselItem: { width: SCREEN_WIDTH, height: '100%' },
+  banner: { width: '100%', height: '100%' },
   dotsContainer: {
     position: 'absolute',
     bottom: 24,
@@ -174,19 +193,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     zIndex: 10,
   },
-  dot: {
-    height: 7,
-    borderRadius: 4,
-    marginHorizontal: 4,
-  },
-  activeDot: {
-    width: 28,
-    backgroundColor: colors.primary,
-  },
-  inactiveDot: {
-    width: 8,
-    backgroundColor: colors.gray_1,
-  },
+  dot: { height: 7, borderRadius: 4, marginHorizontal: 4 },
+  activeDot: { width: 28, backgroundColor: colors.primary },
+  inactiveDot: { width: 8, backgroundColor: colors.gray_1 },
   bottomContainer: {
     flex: 0.52,
     backgroundColor: colors.black_1,
@@ -198,7 +207,7 @@ const styles = StyleSheet.create({
   },
   title: {
     color: colors.white,
-    fontSize: 48, 
+    fontSize: 48,
     fontWeight: '800',
     lineHeight: 56,
     letterSpacing: 0.5,
@@ -219,11 +228,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
   },
-  googleButtonTextCustom: {
-    fontSize: 22,
-    fontWeight: '700',
-    marginLeft: 8,
-  },
+  googleButtonTextCustom: { fontSize: 22, fontWeight: '700', marginLeft: 8 },
   footer: {
     marginTop: 'auto',
     marginBottom: 20,
@@ -231,13 +236,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  footerText: {
-    color: colors.gray_2,
-    fontSize: 16,
-  },
-  loginText: {
-    color: colors.primary,
-    fontSize: 16,
-    fontWeight: '700',
-  },
+  footerText: { color: colors.gray_2, fontSize: 16 },
+  loginText: { color: colors.primary, fontSize: 16, fontWeight: '700' },
 });

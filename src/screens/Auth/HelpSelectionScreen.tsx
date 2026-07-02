@@ -1,108 +1,179 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
   View,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux'; // Added useSelector[cite: 4]
 import {
   setAuthScreen,
   setLoginStatus,
   setRootScreen,
-} from '../../redux/slices/authSlice';
+} from '../../redux/slices/authSlice'; //[cite: 4]
 
-// Importing your custom colors and common button
-import colors from '../../theme/colors';
-import CommonButton from '../../components/Button/Button'; // Double check this path matches your folder structure
+import colors from '../../theme/colors'; //[cite: 4]
+import CommonButton from '../../components/Button/Button'; //[cite: 4]
+import { getHelpsApi } from '../../services/authService'; //[cite: 4]
+import {
+  updateProfileFieldsAction,
+  fetchUserProfileAction,
+} from '../../redux/actions/authActions'; // Added fetchUserProfileAction[cite: 4]
 
-const CATEGORIES = [
-  'Auto mobile',
-  'Career guidance',
-  'Entertainment',
-  'Fashion',
-  'Finance',
-  'Fitness',
-  'Health',
-  'Investment',
-  'Legel', // Kept typo from image ("Legel")
-  'Mental health',
-  'Nutrition',
-  'Relation ship', // Kept spacing from image ("Relation ship")
-];
+interface HelpItem {
+  id: string;
+  help: string;
+} //[cite: 4]
 
 const HelpSelectionScreen = ({ navigation }: any) => {
-  const dispatch = useDispatch();
-  const [selectedItems, setSelectedItems] = useState<string[]>([]);
+  const dispatch = useDispatch<any>();
 
-  // Toggle selection state for tags
+  // Extract userId to dynamically request the logged-in user's profile
+  const user = useSelector((state: any) => state.auth.user);
+  const userId = user?._id || user?.id;
+
+  const [categories, setCategories] = useState<HelpItem[]>([]);
+  const [selectedItems, setSelectedItems] = useState<string[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [isSaving, setIsSaving] = useState<boolean>(false); //[cite: 4]
+
+  useEffect(() => {
+    const initializeScreenData = async () => {
+      try {
+        setLoading(true);
+
+        // 1. Fetch available help master list from options API
+        const optionsResponse = await getHelpsApi();
+        let fetchedCategories: HelpItem[] = [];
+
+        if (
+          optionsResponse &&
+          optionsResponse.success &&
+          optionsResponse.data?.helps
+        ) {
+          fetchedCategories = optionsResponse.data.helps;
+          setCategories(fetchedCategories);
+        } else {
+          Alert.alert('Error', 'Failed to retrieve help list options.');
+          return;
+        }
+
+        // 2. Fetch the user profile to cross-reference pre-selections
+        if (userId) {
+          const profileResult = await dispatch(fetchUserProfileAction(userId));
+          if (
+            profileResult &&
+            profileResult.success &&
+            profileResult.data?.helps
+          ) {
+            const savedHelps: string[] = profileResult.data.helps;
+
+            // Map saved string values to confirm they exist in options before selection
+            const preSelected = fetchedCategories
+              .map(item => item.help)
+              .filter(helpText => savedHelps.includes(helpText));
+
+            setSelectedItems(preSelected);
+          }
+        }
+      } catch (error: any) {
+        Alert.alert('Error', error.message || 'Could not connect to service.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initializeScreenData();
+  }, [userId, dispatch]); //[cite: 4]
+
   const toggleSelection = (item: string) => {
     if (selectedItems.includes(item)) {
-      setSelectedItems(selectedItems.filter((i) => i !== item));
+      setSelectedItems(selectedItems.filter(i => i !== item));
     } else {
       setSelectedItems([...selectedItems, item]);
     }
-  };
+  }; //[cite: 4]
 
-  const handleContinue = () => {
-    // Navigate and trigger redux actions
-    navigation.navigate('InterestSelection');
-    dispatch(setRootScreen('AuthNavigator'));
-    dispatch(setAuthScreen('InterestSelection'));
-    dispatch(setLoginStatus(false));
-  };
+  const handleContinue = async () => {
+    try {
+      setIsSaving(true); //[cite: 4]
+      const result = await dispatch(
+        updateProfileFieldsAction({ helps: selectedItems }),
+      ); //[cite: 4]
+
+      if (result && result.success) {
+        navigation.navigate('InterestSelection'); //[cite: 4]
+      } else {
+        Alert.alert(
+          'Update Failed',
+          result.error || 'Unable to update selections.',
+        ); //[cite: 4]
+      }
+    } catch (err: any) {
+      Alert.alert('Error', err?.message || 'Something went wrong.'); //[cite: 4]
+    } finally {
+      setIsSaving(false); //[cite: 4]
+    }
+  }; //[cite: 4]
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView 
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Header Section */}
-        <Text style={styles.headerText}>How Can We{"\n"}Help You?</Text>
-        
-        <Text style={styles.subHeaderText}>
-          Select one or more areas where you are seeking assistance to personalize your journey.
-        </Text>
-
-        {/* Tags Wrap Layout Section */}
-        <View style={styles.tagContainer}>
-          {CATEGORIES.map((category) => {
-            const isSelected = selectedItems.includes(category);
-            return (
-              <TouchableOpacity
-                key={category}
-                activeOpacity={0.7}
-                onPress={() => toggleSelection(category)}
-                style={[
-                  styles.tag,
-                  isSelected && styles.tagSelected
-                ]}
-              >
-                <Text style={[
-                  styles.tagText,
-                  isSelected && styles.tagTextSelected
-                ]}>
-                  {category}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
+      {loading ? (
+        <View style={styles.centeredLoader}>
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
-      </ScrollView>
+      ) : (
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <Text style={styles.headerText}>How Can We{'\n'}Help You?</Text>
+          <Text style={styles.subHeaderText}>
+            Select one or more areas where you are seeking assistance to
+            personalize your journey.
+          </Text>
 
-      {/* Persistent Bottom Action Button */}
-      <View style={styles.footer}>
-        <CommonButton
-          text="Continue"
-          onPress={handleContinue}
-          disabled={selectedItems.length === 0} // Optional: disables button if nothing is chosen
-          backgroundColor={colors.primary}
-          textColor={colors.white}
-        />
-      </View>
+          <View style={styles.tagContainer}>
+            {categories.map(item => {
+              const isSelected = selectedItems.includes(item.help);
+              return (
+                <TouchableOpacity
+                  key={item.id}
+                  activeOpacity={0.7}
+                  onPress={() => toggleSelection(item.help)}
+                  disabled={isSaving}
+                  style={[styles.tag, isSelected && styles.tagSelected]}
+                >
+                  <Text
+                    style={[
+                      styles.tagText,
+                      isSelected && styles.tagTextSelected,
+                    ]}
+                  >
+                    {item.help}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </ScrollView>
+      )}
+
+      {!loading && (
+        <View style={styles.footer}>
+          <CommonButton
+            text={isSaving ? 'Saving...' : 'Continue'}
+            onPress={handleContinue}
+            disabled={selectedItems.length === 0 || isSaving}
+            backgroundColor={colors.primary}
+            textColor={colors.white}
+          />
+        </View>
+      )}
     </SafeAreaView>
   );
 };
@@ -110,15 +181,9 @@ const HelpSelectionScreen = ({ navigation }: any) => {
 export default HelpSelectionScreen;
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.black_1 || '#0A0A0A', // Falls back to dark background if colors file doesn't match
-  },
-  scrollContent: {
-    paddingHorizontal: 24,
-    paddingTop: 40,
-    paddingBottom: 100, // Safe padding space so elements don't get trapped under the absolute footer
-  },
+  container: { flex: 1, backgroundColor: colors.black_1 || '#0A0A0A' },
+  centeredLoader: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  scrollContent: { paddingHorizontal: 24, paddingTop: 40, paddingBottom: 100 },
   headerText: {
     fontSize: 42,
     fontWeight: '700',
@@ -147,26 +212,20 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'transparent',
   },
-  tagSelected: {
-    borderColor: colors.primary, // Highlights border with your theme primary color when tapped
-    backgroundColor: '#1C2814', // Subtle darkened primary tint for selection context
-  },
+  tagSelected: { borderColor: colors.primary, backgroundColor: '#1C2814' },
   tagText: {
     color: colors.gray_2 || '#8A8A8E',
     fontSize: 16,
     fontWeight: '500',
   },
-  tagTextSelected: {
-    color: colors.white,
-    fontWeight: '600',
-  },
+  tagTextSelected: { color: colors.white, fontWeight: '600' },
   footer: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
     paddingHorizontal: 24,
-    paddingBottom: 34, // Safe spacing for modern bezel-less device home bars
+    paddingBottom: 34,
     backgroundColor: 'transparent',
   },
 });

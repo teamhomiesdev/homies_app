@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "511277179417",
+    "project_id": "homiesapp-f690b",
+    "storage_bucket": "homiesapp-f690b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:511277179417:android:b7c8b0ede3c50870b8c088",
+        "android_client_info": {
+          "package_name": "com.homies.menkibaat"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "511277179417-lvokqjs7l0veedbchiuf1k4fo6jb1vfd.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.homies.menkibaat",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "511277179417-avfupmlk5pjb2qjgc1fhmp89n905a10f.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB_Vtk_LFibl4jYjRO8gDv9-gtcHcoUac0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "511277179417-avfupmlk5pjb2qjgc1fhmp89n905a10f.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,4 +1,4 @@
-package com.homies
+package com.homies.menkibaat
 
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate

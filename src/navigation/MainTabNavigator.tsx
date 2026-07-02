@@ -31,9 +31,7 @@ const CustomTabBarButton = ({ children, onPress }: any) => (
     onPress={onPress}
     style={styles.centerButtonWrapper}
   >
-    <View style={styles.centerButtonInner}>
-      {children}
-    </View>
+    <View style={styles.centerButtonInner}>{children}</View>
   </TouchableOpacity>
 );
 
@@ -42,75 +40,95 @@ const MainTabNavigator = () => {
 
   return (
     <Tab.Navigator
-      initialRouteName="Social"
+      initialRouteName="HelpList"
       screenOptions={{
         headerShown: false,
-        tabBarShowLabel: false, 
+        tabBarShowLabel: false,
         tabBarStyle: [
           styles.tabBar,
-          { 
-            height: 65 + insets.bottom, 
-            paddingBottom: insets.bottom 
-          }
+          {
+            height: 65 + insets.bottom,
+            paddingBottom: insets.bottom,
+          },
         ],
       }}
     >
-      <Tab.Screen 
-        name="HelpList" 
-        component={HelpListScreen} 
+      <Tab.Screen
+        name="Social"
+        component={SocialScreen}
         options={{
           tabBarIcon: ({ focused }) => (
             <>
-            {focused ? <Group height={30} width={30} /> : <Group_Inactive height={24} width={24} />}
-            </>
-          ),
-        }}
-      />
-      
-      <Tab.Screen 
-        name="TrueEvents" 
-        component={TrueEventsScreen} 
-        options={{
-          tabBarIcon: ({ focused }) => (
-                <>
-            {focused ? <Book height={30} width={30} /> : <Book_Inactive height={24} width={24} />}
+              {focused ? (
+                <Group height={30} width={30} />
+              ) : (
+                <Group_Inactive height={24} width={24} />
+              )}
             </>
           ),
         }}
       />
 
-      <Tab.Screen 
-        name="Social" 
-        component={SocialScreen} 
+      <Tab.Screen
+        name="TrueEvents"
+        component={TrueEventsScreen}
         options={{
           tabBarIcon: ({ focused }) => (
-              <>
-            {focused ? <Hands height={35} width={35} /> : <Hands_Inactive height={24} width={24} />}
-            </>
-          ),
-          tabBarButton: (props) => <CustomTabBarButton {...props} />,
-        }}
-      />
-
-      <Tab.Screen 
-        name="Profile" 
-        component={ProfileScreen} 
-        options={{
-          tabBarIcon: ({ focused }) => (
-             <>
-            {focused ? <User height={30} width={30} /> : <User_Inactive height={24} width={24} />}
+            <>
+              {focused ? (
+                <Book height={30} width={30} />
+              ) : (
+                <Book_Inactive height={24} width={24} />
+              )}
             </>
           ),
         }}
       />
 
-      <Tab.Screen 
-        name="Chat" 
-        component={ChatScreen} 
+      <Tab.Screen
+        name="HelpList"
+        component={HelpListScreen}
         options={{
           tabBarIcon: ({ focused }) => (
-             <>
-            {focused ? <Chat height={30} width={30} /> : <Chat_Inactive height={24} width={24} />}
+            <>
+              {focused ? (
+                <Hands height={35} width={35} />
+              ) : (
+                <Hands_Inactive height={24} width={24} />
+              )}
+            </>
+          ),
+          tabBarButton: props => <CustomTabBarButton {...props} />,
+        }}
+      />
+
+      <Tab.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <>
+              {focused ? (
+                <User height={30} width={30} />
+              ) : (
+                <User_Inactive height={24} width={24} />
+              )}
+            </>
+          ),
+        }}
+      />
+
+      <Tab.Screen
+        name="Chat"
+        component={ChatScreen}
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <>
+              {focused ? (
+                <Chat height={30} width={30} />
+              ) : (
+                <Chat_Inactive height={24} width={24} />
+              )}
             </>
           ),
         }}

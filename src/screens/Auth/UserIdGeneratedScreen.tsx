@@ -1,31 +1,55 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   StyleSheet,
   Text,
   View,
   ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle, Path } from 'react-native-svg';
+import { useDispatch, useSelector } from 'react-redux';
 
-// Referencing your core theme configuration and button
+// Referencing core configuration, components, and action wrappers
 import colors from '../../theme/colors';
 import CommonButton from '../../components/Button/Button';
+import { fetchUserProfileAction } from '../../redux/actions/authActions';
 
 interface UserIdGeneratedScreenProps {
   navigation: any;
 }
 
-const UserIdGeneratedScreen: React.FC<UserIdGeneratedScreenProps> = ({ navigation }) => {
-  
+const UserIdGeneratedScreen: React.FC<UserIdGeneratedScreenProps> = ({
+  navigation,
+}) => {
+  const dispatch = useDispatch<any>();
+  const [loading, setLoading] = useState<boolean>(true);
+
+  // 1. Grab current cached credentials safely from auth slice
+  const user = useSelector((state: any) => state.auth.user);
+
+  // Extracting user identity. Matches either string id or mongo format mapping
+  const userId = user?._id || user?.id;
+
+  useEffect(() => {
+    if (userId) {
+      setLoading(true);
+      // 2. Fire action to fetch the profile from the server on view render
+      dispatch(fetchUserProfileAction(userId)).finally(() => {
+        setLoading(false);
+      });
+    } else {
+      setLoading(false);
+    }
+  }, [userId, dispatch]);
+
   const handleGetStarted = () => {
-    // Navigate further into the app dashboard/home setup
     navigation.navigate('MainTabNavigator');
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView 
+      <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
@@ -37,34 +61,43 @@ const UserIdGeneratedScreen: React.FC<UserIdGeneratedScreenProps> = ({ navigatio
 
         {/* Profile Card Container */}
         <View style={styles.cardContainer}>
-          
           {/* Avatar Area */}
           <View style={styles.avatarWrapper}>
             <Svg height="60" width="60" viewBox="0 0 24 24">
               <Circle cx="12" cy="12" r="11" fill="#2F5E24" />
-              {/* Head */}
               <Circle cx="12" cy="8.5" r="3.5" fill="#1E88E5" />
-              {/* Torso */}
-              <Path 
-                d="M12 13.5c-3.5 0-6.5 2-6.5 4.5v1h13v-1c0-2.5-3-4.5-6.5-4.5z" 
-                fill="#1E88E5" 
+              <Path
+                d="M12 13.5c-3.5 0-6.5 2-6.5 4.5v1h13v-1c0-2.5-3-4.5-6.5-4.5z"
+                fill="#1E88E5"
               />
             </Svg>
           </View>
 
-          {/* Member Label & ID */}
+          {/* Member Label & Dynamic Name Display */}
           <Text style={styles.memberLabel}>HOMIE MEMBER</Text>
-          <Text style={styles.memberIdText}>homie_c633lyka0</Text>
-          
+
+          {loading ? (
+            <ActivityIndicator
+              size="small"
+              color={colors.white}
+              style={{ marginBottom: 30 }}
+            />
+          ) : (
+            <Text style={styles.memberIdText}>
+              {user?.name || 'homie_anonymous'}
+            </Text>
+          )}
+
           {/* Divider Line */}
           <View style={styles.divider} />
 
           {/* Account Status Badge Label */}
           <Text style={styles.statusLabel}>ACCOUNT STATUS</Text>
           <View style={styles.badgeContainer}>
-            <Text style={styles.badgeText}>VERIFIED</Text>
+            <Text style={styles.badgeText}>
+              {user?.isProfileVerified ? 'VERIFIED' : 'PENDING'}
+            </Text>
           </View>
-
         </View>
       </ScrollView>
 
@@ -112,7 +145,7 @@ const styles = StyleSheet.create({
   },
   cardContainer: {
     width: '100%',
-    backgroundColor: '#151515', // Darker offset sheet container color matching your image layout
+    backgroundColor: '#151515',
     borderRadius: 28,
     borderWidth: 1,
     borderColor: '#222222',
@@ -123,13 +156,13 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 12,
-    elevation: 3, // Soft backdrop elevation depth context
+    elevation: 3,
   },
   avatarWrapper: {
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: '#6D8F3D', // Outer ring background layer matching profile circle asset
+    backgroundColor: '#6D8F3D',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 30,
@@ -163,7 +196,7 @@ const styles = StyleSheet.create({
   },
   badgeContainer: {
     borderWidth: 1.5,
-    borderColor: '#425430', // Forest green capsule perimeter variant style
+    borderColor: '#425430',
     backgroundColor: '#1A2316',
     paddingHorizontal: 24,
     paddingVertical: 8,
@@ -172,7 +205,7 @@ const styles = StyleSheet.create({
   badgeText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#7AA344', // Distinct glowing green verification typography accent
+    color: '#7AA344',
     letterSpacing: 1.5,
   },
   footer: {
