@@ -29,3 +29,32 @@ export const getProfileApi = async (userId: string) => {
   const response = await api.get(`/auth/profile?userId=${userId}`);
   return response.data;
 };
+
+export const verifyFaceImage = async (base64Image: string) => {
+  try {
+    const response = await api.post(
+      'https://api.homies.support/api/verification/image',
+      { image: base64Image },
+      { 
+        timeout: 60000 // Force explicit 1 minute timeout (60,000 ms)
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Face verification API error:", error);
+    throw error;
+  }
+};
+
+export const updateVerificationStatus = async (payload: any) => {
+  try {
+    // Using your centralized api instance automatically applies the correct Base URL and headers
+    const response = await api.patch('/auth/verification', payload);
+    
+    // Adjust based on your API instance's response structure (Axios typically wraps data in response.data)
+    return response.data || response;
+  } catch (error) {
+    console.error('Error in updateVerificationStatus service:', error);
+    throw error;
+  }
+};

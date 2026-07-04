@@ -1,129 +1,126 @@
-import React, { useEffect, useRef, useState } from 'react';
-import {
-  StyleSheet,
-  Text,
-  View,
-  TouchableOpacity,
-  ActivityIndicator,
-  Alert,
-  Dimensions,
-  Image,
-  Linking,
-  AppState,
-  AppStateStatus,
-} from 'react-native';
+import React, { useState, useRef } from 'react';
+import { StyleSheet, Text, View, Dimensions, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Camera, useCameraDevice, useCameraPermission } from 'react-native-vision-camera';
+import { Camera, useCameraDevice, useCameraPermission, usePhotoOutput } from 'react-native-vision-camera';
+import colors from '../../theme/colors'; 
+import CommonButton from '../../components/Button/Button';
+
+// --- REDUX, SERVICES & TOAST IMPORTS ---
 import { useDispatch } from 'react-redux';
-import RNFS from 'react-native-fs';
-import {
-  setAuthScreen,
-  setLoginStatus,
-  setRootScreen,
-} from '../../redux/slices/authSlice';
+import { setRootScreen, setAuthScreen, setLoginStatus } from '../../redux/slices/authSlice'; 
+import { verifyFaceImage } from '../../services/authService'; 
+import { showToast } from '../../components/Toast/Toast';
 
-const { width } = Dimensions.get('window');
+interface FaceVerificationScreenProps {
+  navigation: {
+    navigate: (screenName: string) => void;
+  };
+}
 
-const FaceVerificationScreen = ({ navigation }: any) => {
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+const FaceVerificationScreen: React.FC<FaceVerificationScreenProps> = ({ navigation }) => {
   const dispatch = useDispatch();
   const cameraRef = useRef<Camera>(null);
   const device = useCameraDevice('front');
-
   const { hasPermission, requestPermission } = useCameraPermission();
+  const [isCapturing, setIsCapturing] = useState<boolean>(false);
   
-  const [isCapturing, setIsCapturing] = useState(false);
-  const [capturedPhotoPath, setCapturedPhotoPath] = useState<string | null>(null);
-  const [base64Output, setBase64Output] = useState<string | null>(null);
-  const appState = useRef(AppState.currentState);
+  // State for the processed base64 string
+  const [base64Image, setBase64Image] = useState<string | null>(null);
+  const photoOutput = usePhotoOutput();
 
-  useEffect(() => {
-    const subscription = AppState.addEventListener('change', handleAppStateChange);
-    return () => {
-      subscription.remove();
-    };
-  }, []);
-
-  const handleAppStateChange = async (nextAppState: AppStateStatus) => {
-    if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
-      await requestPermission();
-    }
-    appState.current = nextAppState;
-  };
-
-  const handleRequestPermission = async () => {
+  const handleEnableCamera = async () => {
     const granted = await requestPermission();
     if (!granted) {
-      Alert.alert(
-        'Camera Access Required',
-        'Open App Settings to enable camera permissions manually?',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Open Settings', onPress: () => Linking.openSettings() }
-        ]
-      );
+      Alert.alert('Permission Denied', 'Please allow camera permission from Settings.');
     }
   };
 
-  const navigateToVoice = () => {
-    navigation.navigate('VoiceVerification');
-    dispatch(setRootScreen('AuthNavigator'));
-    dispatch(setAuthScreen('VoiceVerification'));
-    dispatch(setLoginStatus(false));
-  };
-
-const takePhoto = async (): Promise<void> => {
-  if (!cameraRef.current || isCapturing) {
-    return;
-  }
-
-  try {
-    setIsCapturing(true);
-
-    const photo = await cameraRef.current.takePhoto({
-      flash: 'off',
-      enableShutterSound: false,
+  // Helper utility to safely convert local cache files to base64 on Android & iOS
+  const convertUriToBase64 = (fileUri: string): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.onload = () => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const fullDataUrl = reader.result as string;
+          // Clean up the scheme to get the raw payload
+          const rawBase64 = fullDataUrl.split(',')[1] || fullDataUrl;
+          resolve(rawBase64); 
+        };
+        reader.onerror = (error) => reject(error);
+        reader.readAsDataURL(xhr.response);
+      };
+      xhr.onerror = (error) => reject(error);
+      
+      const safeUri = fileUri.startsWith('file://') ? fileUri : `file://${fileUri}`;
+      xhr.open('GET', safeUri);
+      xhr.responseType = 'blob';
+      xhr.send();
     });
+  };
 
-    console.log('Photo:', photo);
-    
+  // API Integration & Validation Logic
+  const executeFaceVerification = async (base64Payload: string) => {
+    try {
+      // The 1-minute timeout is handled inside verifyFaceImage in authService.ts
+      const response = await verifyFaceImage(base64Payload);
 
-    // photo.path is absolute path returned by Vision Camera
-    const imagePath = photo.path;
+      if (response && response.success && response.data) {
+        // Extract gender from the response safely
+        const detectedGender = response.data.gender?.toLowerCase();
 
-    // Read image directly as Base64
-    const base64 = await RNFS.readFile(imagePath, 'base64');
+        // Strict Enforcement: Only allow "male"
+        if (detectedGender === 'male') {
+          showToast("Login successful!", "success", 4000);
+          
+          // Execute navigation and Redux updates
+          navigation.navigate('HelpSelection');
+          dispatch(setRootScreen('AuthNavigator')); 
+          dispatch(setAuthScreen('HelpSelection'));
+          dispatch(setLoginStatus(true));
+        } else {
+          // Reject block: handles female or unidentifiable gender cases
+          showToast("Verification failed: Only male users are permitted.", "error", 4000);
+        }
+      } else {
+        showToast(response?.message || "Verification failed.", "error", 4000);
+      }
 
-    setCapturedPhotoPath(imagePath);
-    setBase64Output(base64);
-
-    console.log('Base64 created successfully');
-  } catch (error) {
-      navigation.navigate('VoiceVerification');
-    dispatch(setRootScreen('AuthNavigator'));
-    dispatch(setAuthScreen('VoiceVerification'));
-    dispatch(setLoginStatus(false));
-    console.log('Capture Error:', error);
-
-    if (error instanceof Error) {
-      Alert.alert('Error', error.message);
-    } else {
-      Alert.alert('Error', 'Unable to capture image.');
-    }
-  } finally {
-    setIsCapturing(false);
-  }
-};
-  const handleConfirmImage = () => {
-    if (base64Output) {
-      Alert.alert('Success', 'Face verified successfully!', [
-        { text: 'Proceed', onPress: navigateToVoice }
-      ]);
+    } catch (error: any) {
+      console.error('Verification Error:', error);
+      showToast("Network error or request timed out. Please try again.", "error", 4000);
     }
   };
 
-  const handleRetake = () => {
-    setCapturedPhotoPath(null);
-    setBase64Output(null);
+  const handleCapturePhoto = async () => {
+    // Ensure both the camera reference and photo pipeline are ready
+    if (!cameraRef.current || !photoOutput || isCapturing) return;
+
+    try {
+      setIsCapturing(true);
+
+      const photoInstance = await photoOutput.capturePhoto(cameraRef.current, {
+        flashMode: 'off',
+        enableShutterSound: false,
+      });
+
+      const photoPath = await photoInstance.saveToTemporaryFileAsync();
+      const cleanedBase64 = await convertUriToBase64(photoPath);
+      
+      setBase64Image(cleanedBase64);
+      photoInstance.dispose();
+
+      // Trigger the verification API call
+      await executeFaceVerification(cleanedBase64);
+      
+    } catch (error: any) {
+      console.error('Error capturing photo:', error);
+      Alert.alert('Error', 'Failed to capture photo. Please try again.');
+    } finally {
+      setIsCapturing(false);
+    }
   };
 
   return (
@@ -132,75 +129,54 @@ const takePhoto = async (): Promise<void> => {
         <Text style={styles.headerTitle}>Verification</Text>
       </View>
 
-      <View style={styles.cameraWrapper}>
-        {capturedPhotoPath ? (
-          <Image
-    source={{
-        uri: capturedPhotoPath?.startsWith('file://')
-            ? capturedPhotoPath
-            : `file://${capturedPhotoPath}`,
-    }}
-    style={StyleSheet.absoluteFill}
-    resizeMode="cover"
-/>
-        ) : hasPermission && device ? (
+      <View style={styles.cameraBoxContainer}>
+        {hasPermission && device ? (
           <Camera
             ref={cameraRef}
             style={StyleSheet.absoluteFill}
             device={device}
             isActive={true}
-            photo={true}
+            outputs={[photoOutput]} 
           />
         ) : (
-          <View style={styles.placeholderContainer}>
-            <Text style={styles.placeholderText}>
+          <View style={styles.permissionPlaceholder}>
+            <Text style={styles.permissionText}>
               Camera access is required to capture your verification frame.
             </Text>
-            <TouchableOpacity style={styles.permissionBtn} onPress={handleRequestPermission}>
-              <Text style={styles.permissionBtnText}>Enable Camera</Text>
-            </TouchableOpacity>
+            <CommonButton
+              text="Enable Camera"
+              backgroundColor={colors?.primary || '#00E676'} 
+              textColor={colors?.black || '#000000'}
+              style={styles.enableButtonCustom}
+              textStyle={styles.enableButtonTextCustom}
+              onPress={handleEnableCamera}
+            />
           </View>
         )}
-        
-        <View style={styles.overlayFrame} />
       </View>
 
-      {capturedPhotoPath ? (
-        <>
-          <Text style={styles.instructionText}>
-            Ensure your face is clear and fully visible inside the box frame.
-          </Text>
+      <View style={styles.footerContainer}>
+        <Text style={styles.instructionText}>
+          Focus your face within the frame to verify your identity.
+        </Text>
 
-          <View style={styles.actionButtonsContainer}>
-            <TouchableOpacity style={[styles.actionBtn, styles.retakeBtn]} onPress={handleRetake}>
-              <Text style={styles.retakeBtnText}>Retake</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity style={[styles.actionBtn, styles.confirmBtn]} onPress={handleConfirmImage}>
-              <Text style={styles.confirmBtnText}>Confirm</Text>
-            </TouchableOpacity>
+        <TouchableOpacity
+          disabled={!hasPermission || isCapturing}
+          onPress={handleCapturePhoto}
+          style={[
+            styles.shutterOuterCircle,
+            (!hasPermission || isCapturing) && { opacity: 0.4 }
+          ]}
+        >
+          <View style={styles.shutterInnerCircle}>
+            {isCapturing ? (
+              <ActivityIndicator color={colors?.white || '#FFF'} />
+            ) : (
+              <View style={styles.shutterInnerButtonFiller} />
+            )}
           </View>
-        </>
-      ) : (
-        <>
-          <Text style={styles.instructionText}>
-            Focus your face within the frame to verify your identity.
-          </Text>
-
-          <View style={styles.bottomContainer}>
-            <TouchableOpacity 
-              style={[styles.captureButtonOuter, !hasPermission && styles.disabledOuterRing]} 
-              onPress={takePhoto}
-              disabled={isCapturing || !hasPermission}
-              activeOpacity={0.8}
-            >
-              <View style={[styles.captureButtonInner, !hasPermission && { backgroundColor: '#2C2C2E' }]}>
-                {isCapturing && <ActivityIndicator color="#000" />}
-              </View>
-            </TouchableOpacity>
-          </View>
-        </>
-      )}
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 };
@@ -210,9 +186,8 @@ export default FaceVerificationScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0A0A0A',
+    backgroundColor: '#0A0A0A', 
     alignItems: 'center',
-    justifyContent: 'space-between',
   },
   header: {
     width: '100%',
@@ -222,112 +197,77 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     color: '#FFFFFF',
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: 26,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
-  cameraWrapper: {
-    width: width * 0.85,
-    height: width * 1.2,
-    borderRadius: 40,
+  cameraBoxContainer: {
+    width: SCREEN_WIDTH - 48,
+    height: (SCREEN_WIDTH - 48) * 1.25, 
+    backgroundColor: '#1C1C1E', 
+    borderRadius: 36,
     overflow: 'hidden',
-    position: 'relative',
-    backgroundColor: '#1C1C1E',
-  },
-  placeholderContainer: {
-    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    marginTop: 20,
+  },
+  permissionPlaceholder: {
+    flex: 1,
     paddingHorizontal: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  placeholderText: {
+  permissionText: {
     color: '#8E8E93',
-    fontSize: 14,
+    fontSize: 16,
     textAlign: 'center',
-    marginBottom: 24,
-    lineHeight: 22,
+    lineHeight: 24,
+    marginBottom: 28,
   },
-  permissionBtn: {
-    backgroundColor: '#4CD964',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 24,
+  enableButtonCustom: {
+    height: 50,
+    width: 180,
+    borderRadius: 25,
   },
-  permissionBtnText: {
-    color: '#000000',
-    fontSize: 15,
-    fontWeight: '600',
+  enableButtonTextCustom: {
+    fontSize: 16,
+    fontWeight: '700',
   },
-  overlayFrame: {
-    ...StyleSheet.absoluteFillObject,
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.35)',
-    borderRadius: 40,
-    borderStyle: 'dashed',
-    margin: 16, 
+  footerContainer: {
+    flex: 1,
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'space-evenly',
+    paddingBottom: 20,
   },
   instructionText: {
-    color: '#8A8A8E',
+    color: '#8E8E93',
     fontSize: 16,
     textAlign: 'center',
     paddingHorizontal: 40,
-    lineHeight: 22,
-    marginVertical: 10,
+    lineHeight: 24,
   },
-  bottomContainer: {
-    marginBottom: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  captureButtonOuter: {
+  shutterOuterCircle: {
     width: 84,
     height: 84,
     borderRadius: 42,
     borderWidth: 4,
-    borderColor: '#4CD964',
+    borderColor: '#3A3A3C',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  disabledOuterRing: {
-    borderColor: '#2C2C2E',
-  },
-  captureButtonInner: {
+  shutterInnerCircle: {
     width: 68,
     height: 68,
     borderRadius: 34,
+    backgroundColor: '#2C2C2E',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  shutterInnerButtonFiller: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
     backgroundColor: '#FFFFFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  actionButtonsContainer: {
-    flexDirection: 'row',
-    width: '100%',
-    justifyContent: 'space-evenly',
-    paddingHorizontal: 20,
-    marginBottom: 40,
-  },
-  actionBtn: {
-    width: width * 0.38,
-    paddingVertical: 14,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  retakeBtn: {
-    backgroundColor: '#1C1C1E',
-    borderWidth: 1,
-    borderColor: '#3A3A3C',
-  },
-  retakeBtnText: {
-    color: '#FF3B30',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  confirmBtn: {
-    backgroundColor: '#4CD964',
-  },
-  confirmBtnText: {
-    color: '#000000',
-    fontSize: 16,
-    fontWeight: '600',
-  },
+  }
 });

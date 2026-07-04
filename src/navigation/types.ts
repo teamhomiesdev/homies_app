@@ -9,7 +9,6 @@ export type AuthStackParamList = {
   Register: undefined;
   BasicDetails: undefined;
   FaceVerification: undefined;
-  VoiceVerification: undefined;
   HelpSelection: undefined;
   InterestSelection: undefined;
   UserIdGenerated: undefined;

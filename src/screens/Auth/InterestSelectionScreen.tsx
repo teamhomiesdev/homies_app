@@ -95,10 +95,10 @@ const InterestSelectionScreen = ({ navigation }: any) => {
       ); //[cite: 5]
 
       if (result && result.success) {
-        navigation.navigate('UserIdGenerated'); //[cite: 5]
-        dispatch(setRootScreen('MainTabNavigator')); //[cite: 5]
-        dispatch(setAuthScreen('Login')); //[cite: 5]
-        dispatch(setLoginStatus(true)); //[cite: 5]
+        navigation.navigate('UserIdGenerated');
+        dispatch(setRootScreen('MainTabNavigator')); 
+        dispatch(setAuthScreen('Login'));
+        dispatch(setLoginStatus(true));
       } else {
         Alert.alert(
           'Update Failed',

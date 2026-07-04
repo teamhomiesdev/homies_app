@@ -25,14 +25,6 @@ export const registerAction = (payload: any) => {
           }));
           targetScreen = 'FaceVerification';
         } 
-        else if (!user.isVoiceVerified) {
-          dispatch(updateNavigationState({
-            rootScreen: 'AuthNavigator',
-            authScreen: 'VoiceVerification',
-            isLoggedIn: false
-          }));
-          targetScreen = 'VoiceVerification';
-        } 
         else if (!user.helps || user.helps.length < 1) {
           dispatch(updateNavigationState({
             rootScreen: 'AuthNavigator',
@@ -94,14 +86,6 @@ export const loginAction = (payload: any) => {
             isLoggedIn: false
           }));
           targetScreen = 'FaceVerification';
-        } 
-        else if (!user.isVoiceVerified) {
-          dispatch(updateNavigationState({
-            rootScreen: 'AuthNavigator',
-            authScreen: 'VoiceVerification',
-            isLoggedIn: false
-          }));
-          targetScreen = 'VoiceVerification';
         } 
         else if (!user.helps || user.helps.length < 1) {
           dispatch(updateNavigationState({

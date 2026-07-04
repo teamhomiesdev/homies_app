@@ -6,7 +6,6 @@ import LoginScreen from '../screens/Auth/LoginScreen';
 import RegisterScreen from '../screens/Auth/RegisterScreen';
 import BasicDetailsScreen from '../screens/Auth/BasicDetailsScreen';
 import FaceVerificationScreen from '../screens/Auth/FaceVerificationScreen';
-import VoiceVerificationScreen from '../screens/Auth/VoiceVerificationScreen';
 import HelpSelectionScreen from '../screens/Auth/HelpSelectionScreen';
 import InterestSelectionScreen from '../screens/Auth/InterestSelectionScreen';
 import UserIdGeneratedScreen from '../screens/Auth/UserIdGeneratedScreen';
@@ -28,10 +27,6 @@ const AuthNavigator = () => {
       <Stack.Screen
         name="FaceVerification"
         component={FaceVerificationScreen}
-      />
-       <Stack.Screen
-        name="VoiceVerification"
-        component={VoiceVerificationScreen}
       />
         <Stack.Screen
         name="HelpSelection"
