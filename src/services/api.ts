@@ -24,7 +24,7 @@ api.interceptors.request.use(
     } else {
       console.log('ℹ️ [API Request]: No authentication token available for this request.');
     }
-
+console.log(`[API Request Config]:`, config); // Log the entire
     // Safe method extraction
     const method = config?.method ? config.method.toUpperCase() : 'REQUEST'; 
     console.log(`[API Request] ${method} ➔ ${config?.url || ''}`); 

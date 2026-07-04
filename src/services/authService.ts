@@ -33,10 +33,10 @@ export const getProfileApi = async (userId: string) => {
 export const verifyFaceImage = async (base64Image: string) => {
   try {
     const response = await api.post(
-      'https://api.homies.support/api/verification/image',
+      '/verification/image',
       { image: base64Image },
       { 
-        timeout: 60000 // Force explicit 1 minute timeout (60,000 ms)
+        timeout: 120000 // Force explicit 1 minute timeout (60,000 ms)
       }
     );
     return response.data;
