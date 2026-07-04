@@ -21,3 +21,11 @@ export type BottomTabParamList = {
   Profile: undefined;
   Chat: undefined;
 };
+
+export type MainStackParamList = {
+  MainTabs: undefined; 
+  ChatWindow: {
+    conversationId: string;
+    title: string;
+  };
+};
