@@ -7,6 +7,7 @@ import MainTabNavigator from './MainTabNavigator';
 import ChatWindowScreen from '../screens/Dashboard/ChatWindowScreen';
 import HelpSelectionScreen from '../screens/Auth/HelpSelectionScreen';
 import InterestSelectionScreen from '../screens/Auth/InterestSelectionScreen';
+import CreatePostScreen from '../screens/Dashboard/CreatePostScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -22,6 +23,7 @@ const AppNavigator = () => {
         name="InterestSelection"
         component={InterestSelectionScreen}
       />
+       <Stack.Screen name="CreatePost" component={CreatePostScreen} />
     </Stack.Navigator>
   );
 };

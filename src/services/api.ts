@@ -3,7 +3,7 @@ import { store } from '../redux/store';
 
 const api = axios.create({
   baseURL: 'https://api.homies.support/api', 
-  timeout: 10000, 
+  timeout: 60000, 
   headers: {
     'Content-Type': 'application/json', 
   },
@@ -11,27 +11,29 @@ const api = axios.create({
 
 api.interceptors.request.use(
   config => {
-    // 1. Fetch the latest token from the Redux state
-    const state = store.getState();
-    const token = state.auth?.token;
+    try {
+      // 1. Fetch the latest token from the Redux state
+      const state = store.getState();
+      const token = state.auth?.token;
 
-    // 2. Attach the Bearer token to headers if present
-    if (token && config.headers) {
-      config.headers['Authorization'] = `Bearer ${token}`;
+      // 2. Attach the Bearer token to headers if present
+      if (token && config.headers) {
+        config.headers['Authorization'] = `Bearer ${token}`;
+        console.log(`🔑 [API Header Token]: Bearer ${token}`);
+      } else {
+        console.log('ℹ️ [API Request]: No authentication token available for this request.');
+      }
+
+      console.log(`[API Request Config]:`, config); 
       
-      // CONSOLE LOG THE TOKEN HERE WHEN AVAILABLE
-      console.log(`🔑 [API Header Token]: Bearer ${token}`);
-    } else {
-      console.log('ℹ️ [API Request]: No authentication token available for this request.');
-    }
-console.log(`[API Request Config]:`, config); // Log the entire
-    // Safe method extraction
-    const method = config?.method ? config.method.toUpperCase() : 'REQUEST'; 
-    console.log(`[API Request] ${method} ➔ ${config?.url || ''}`); 
+      const method = config?.method ? config.method.toUpperCase() : 'REQUEST'; 
+      console.log(`[API Request] ${method} ➔ ${config?.url || ''}`); 
 
-    // CONSOLE LOG THE REQUEST PAYLOAD HERE IF IT EXISTS
-    if (config.data) {
-      console.log(`📦 [API Request Payload]:`, typeof config.data === 'string' ? JSON.parse(config.data) : config.data);
+      if (config.data) {
+        console.log(`📦 [API Request Payload]:`, typeof config.data === 'string' ? JSON.parse(config.data) : config.data);
+      }
+    } catch (e) {
+      console.error('⚠️ Interceptor Logging Error:', e);
     }
 
     return config;

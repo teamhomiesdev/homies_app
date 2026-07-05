@@ -1,114 +1,172 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  FlatList, 
-  TouchableOpacity, 
+import React, { useState, useRef, useCallback } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
   ActivityIndicator,
-  Platform
+  Alert,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context'; // 👈 Using your project's context hook
-import PostCard from '../../components/PostCard/PostCard'; 
-
-interface Post {
-  id: string;
-  username: string;
-  userInitials: string;
-  timeAgo: string;
-  content: string;
-  hashtags?: string[];
-  likes: number;
-  comments: number;
-}
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
+import PostCard, { PostData } from '../../components/PostCard/PostCard';
+import { postService } from '../../services/postService';
 
 const HelpListScreen = ({ navigation }: any) => {
-  const insets = useSafeAreaInsets(); // 👈 Get precise system notch/island offsets
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const insets = useSafeAreaInsets();
+  const [posts, setPosts] = useState<PostData[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [loadingMore, setLoadingMore] = useState<boolean>(false);
+  
+  // Pagination Tracking States
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [totalPages, setTotalPages] = useState<number>(1);
 
-  useEffect(() => {
-    fetchHelpPosts();
-  }, []);
+  // Track which post is currently focused in the center of the screen for video autoplay
+  const [activeVideoPostId, setActiveVideoPostId] = useState<string | null>(null);
 
-  const fetchHelpPosts = async () => {
+  // useFocusEffect fires every single time the screen gains active user focus
+  useFocusEffect(
+    useCallback(() => {
+      // Reset tracking pagination states and fetch fresh starting page data
+      fetchHelpPosts(1, true);
+    }, [])
+  );
+
+  const fetchHelpPosts = async (pageToFetch: number, isInitialRefresh: boolean = false) => {
+    // Prevent duplicated parallel page execution sweeps
+    if (loading || loadingMore) return;
+
     try {
-      setLoading(true);
-      const mockData: Post[] = [
-        {
-          id: '1',
-          username: 'homie_upqxbqvue',
-          userInitials: 'HO',
-          timeAgo: '3 hrs ago',
-          content: "My wife is asking for divorce because she doesn't want to live with my parents",
-          likes: 1,
-          comments: 2,
-        },
-        {
-          id: '2',
-          username: 'homie_lwnohhnnl',
-          userInitials: 'HO',
-          timeAgo: '3 hrs ago',
-          content: 'My wife sent away from own house I am living now in car',
-          likes: 1,
-          comments: 2,
-        },
-        {
-          id: '3',
-          username: 'homie_u40fv2on6',
-          userInitials: 'H4',
-          timeAgo: '11 hrs ago',
-          content: 'dfbfd',
-          hashtags: ['#SAVE_HUMANITY', '#SAVE_MEN'],
-          likes: 0,
-          comments: 0,
-        },
-         {
-          id: '1',
-          username: 'homie_upqxbqvue',
-          userInitials: 'HO',
-          timeAgo: '3 hrs ago',
-          content: "My wife is asking for divorce because she doesn't want to live with my parents",
-          likes: 1,
-          comments: 2,
-        },
-        {
-          id: '2',
-          username: 'homie_lwnohhnnl',
-          userInitials: 'HO',
-          timeAgo: '3 hrs ago',
-          content: 'My wife sent away from own house I am living now in car',
-          likes: 1,
-          comments: 2,
-        },
-        {
-          id: '3',
-          username: 'homie_u40fv2on6',
-          userInitials: 'H4',
-          timeAgo: '11 hrs ago',
-          content: 'dfbfd',
-          hashtags: ['#SAVE_HUMANITY', '#SAVE_MEN'],
-          likes: 0,
-          comments: 0,
-        },
-      ];
-      setPosts(mockData);
+      if (isInitialRefresh) {
+        setLoading(true);
+      } else {
+        setLoadingMore(true);
+      }
+
+      const json = await postService.getPosts(pageToFetch, 10, 'HELP');
+
+      if (json && json.success && json.data?.posts) {
+        if (isInitialRefresh) {
+          setPosts(json.data.posts);
+          setCurrentPage(1);
+        } else {
+          // Append new paginated items to the existing feed array
+          setPosts((prevPosts) => [...prevPosts, ...json.data.posts]);
+          setCurrentPage(pageToFetch);
+        }
+        
+        // Dynamically capture total page boundaries delivered by the server backend
+        setTotalPages(json.data.pages || 1);
+      } else {
+        Alert.alert('Error', json.message || 'Failed to retrieve help posts.');
+      }
     } catch (error) {
-      console.error("Error fetching help posts:", error);
+      console.error('Error fetching help posts:', error);
+      Alert.alert('Network Error', 'Could not connect to the server.');
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   };
 
+  const loadMorePosts = () => {
+    // Fire next page query if another data layer is verified on the backend
+    if (currentPage < totalPages && !loadingMore) {
+      const nextPage = currentPage + 1;
+      fetchHelpPosts(nextPage, false);
+    }
+  };
+
+  // Profile picture or Name click handler
+  const handleProfilePress = (userId: string, postId: string) => {
+    navigation.navigate('UserProfile', { userId, postId });
+  };
+
+  // Comment icon click handler
+  const handleCommentPress = (userId: string, postId: string) => {
+    navigation.navigate('PostDetails', { userId, postId });
+  };
+
+  // Placeholder actions for likes
+  // Optimized live execution handle for toggling user likes
+  const handleLikePress = async (postId: string, currentStatus: boolean) => {
+    // 1. Optimistically update local UI state immediately for responsive interaction
+    setPosts((prevPosts) =>
+      prevPosts.map((post) => {
+        if (post.id === postId) {
+          return {
+            ...post,
+            isPatted: !currentStatus,
+            pats: currentStatus ? post.pats - 1 : post.pats + 1,
+          };
+        }
+        return post;
+      })
+    );
+
+    try {
+      // 2. Execute network synchronization request payload
+      const json = await postService.toggleLike(postId);
+
+      // Rollback or adjust state if backend response indicates failure
+      if (!json || !json.success) {
+        throw new Error(json?.message || 'Failed to update like status on server.');
+      }
+    } catch (error) {
+      console.error('Error toggling like status state:', error);
+      
+      // 3. Rollback UI instantly if API communication breaks
+      setPosts((prevPosts) =>
+        prevPosts.map((post) => {
+          if (post.id === postId) {
+            return {
+              ...post,
+              isPatted: currentStatus,
+              pats: currentStatus ? post.pats + 1 : post.pats - 1,
+            };
+          }
+          return post;
+        })
+      );
+      Alert.alert('Error', 'Could not sync like status with server.');
+    }
+  };
+
+  // Viewability configuration to detect when a card takes up at least 60% of the screen viewport
+  const onViewableItemsChanged = useRef(({ viewableItems }: any) => {
+    if (viewableItems && viewableItems.length > 0) {
+      setActiveVideoPostId(viewableItems[0].item.id);
+    }
+  }).current;
+
+  const viewabilityConfig = useRef({
+    itemVisiblePercentThreshold: 60,
+  }).current;
+
+  // Render a dynamic spinner inside the list footer when grabbing more pages
+  const renderFooter = () => {
+    if (!loadingMore) return null;
+    return (
+      <View style={styles.footerLoader}>
+        <ActivityIndicator size="small" color="#76A065" />
+      </View>
+    );
+  };
+
   return (
-    // Dynamic top padding prevents text from hiding under the status bar/notch
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Header Bar */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Homies</Text>
-        <TouchableOpacity 
-          style={styles.createPostButton} 
-          onPress={() => navigation.navigate('CreatePost')}
+        <TouchableOpacity
+          style={styles.createPostButton}
+          onPress={() => {
+            navigation.navigate('CreatePost', {
+              from: 'HelpList',
+            });
+          }}
         >
           <Text style={styles.createPostText}>Create Post</Text>
         </TouchableOpacity>
@@ -123,16 +181,25 @@ const HelpListScreen = ({ navigation }: any) => {
         <FlatList
           data={posts}
           keyExtractor={(item) => item.id}
+          onViewableItemsChanged={onViewableItemsChanged}
+          viewabilityConfig={viewabilityConfig}
           renderItem={({ item }) => (
-            <PostCard 
+            <PostCard
               post={item}
-              onPostPress={() => navigation.navigate('PostDetails', { postId: item.id })}
-              onProfilePress={() => navigation.navigate('UserProfile', { username: item.username })}
+              isActive={item.id === activeVideoPostId}
+              onProfilePress={handleProfilePress}
+              onCommentPress={handleCommentPress}
+              onLikePress={handleLikePress}
             />
           )}
-          // Extra bottom padding ensures cards scroll completely clear of your custom active floating nav bar
-          contentContainerStyle={[styles.listContent, { paddingBottom: 100 + insets.bottom }]}
+          contentContainerStyle={[
+            styles.listContent,
+            { paddingBottom: 100 + insets.bottom }, // Increased base extra spacing for the last card
+          ]}
           showsVerticalScrollIndicator={false}
+          onEndReached={loadMorePosts}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={renderFooter}
         />
       )}
     </View>
@@ -179,5 +246,9 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  }
+  },
+  footerLoader: {
+    paddingVertical: 20,
+    alignItems: 'center',
+  },
 });
