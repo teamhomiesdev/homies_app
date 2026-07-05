@@ -27,20 +27,41 @@ export const postService = {
     return response.data;
   },
 
-  // Dynamic feed pagination handling query transformations
-  getPosts: async (page: number = 1, limit: number = 10, type: 'HELP' | 'SOCIAL' = 'HELP'): Promise<any> => {
+  getPosts: async (page: number = 1, limit: number = 10, type: 'HELP' | 'SOCIAL' | 'TRUEEVENTS' = 'HELP'): Promise<any> => {
     const response = await api.get('/posts', {
-      params: {
-        page,
-        limit,
-        type,
-      },
+      params: { page, limit, type },
     });
     return response.data;
   },
 
   toggleLike: async (postId: string): Promise<any> => {
     const response = await api.post(`/posts/${postId}/toggle-like`);
+    return response.data;
+  },
+
+  getPostDetails: async (postId: string): Promise<any> => {
+    const response = await api.get(`/posts/${postId}`);
+    return response.data;
+  },
+
+  // FIX: Conditionally construct query parameters to appease the strict backend requirement
+  getComments: async (page: number = 1, limit: number = 5, commentId: string = '', postId: string = ''): Promise<any> => {
+    const queryParams: any = { page, limit };
+
+    if (commentId) {
+      queryParams.commentId = commentId; // If getting replies, target the parent comment node only
+    } else if (postId) {
+      queryParams.postId = postId;       // Otherwise, target the top-level root post thread
+    }
+
+    const response = await api.get('/comments', {
+      params: queryParams,
+    });
+    return response.data;
+  },
+
+  createComment: async (payload: { postId: string; content: string; parentCommentId?: string }): Promise<any> => {
+    const response = await api.post('/comments', payload);
     return response.data;
   },
 };

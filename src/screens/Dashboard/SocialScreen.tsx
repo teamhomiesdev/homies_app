@@ -86,8 +86,10 @@ const SocialScreen = ({ navigation }: any) => {
   };
 
   // Comment icon click handler
-  const handleCommentPress = (userId: string, postId: string) => {
-    navigation.navigate('PostDetails', { userId, postId });
+  const handleCommentPress = (item: any) => {
+    navigation.navigate('PostDetails', { 
+    postId: item.id 
+  });
   };
 
   // Optimized live execution handle for toggling user likes with optimistic state updates
@@ -155,6 +157,15 @@ const SocialScreen = ({ navigation }: any) => {
     );
   };
 
+  // Renders when list is empty and data fetching has finished
+  const renderEmptyComponent = () => {
+    return (
+      <View style={styles.emptyContainer}>
+        <Text style={styles.emptyText}>No social posts shared yet.</Text>
+      </View>
+    );
+  };
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Header Bar */}
@@ -188,18 +199,20 @@ const SocialScreen = ({ navigation }: any) => {
               post={item}
               isActive={item.id === activeVideoPostId}
               onProfilePress={handleProfilePress}
-              onCommentPress={handleCommentPress}
+              onCommentPress={() => handleCommentPress(item)}
               onLikePress={handleLikePress}
             />
           )}
           contentContainerStyle={[
             styles.listContent,
+            posts.length === 0 && { flex: 1 }, // Allows empty container view layout to grow full height
             { paddingBottom: 100 + insets.bottom }, // Keeps extra spacing safe for bottom tab layouts
           ]}
           showsVerticalScrollIndicator={false}
           onEndReached={loadMorePosts}
           onEndReachedThreshold={0.5}
           ListFooterComponent={renderFooter}
+          ListEmptyComponent={renderEmptyComponent}
         />
       )}
     </View>
@@ -250,5 +263,17 @@ const styles = StyleSheet.create({
   footerLoader: {
     paddingVertical: 20,
     alignItems: 'center',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 32,
+  },
+  emptyText: {
+    color: '#8A8A8E',
+    fontSize: 16,
+    textAlign: 'center',
+    lineHeight: 22,
   },
 });
