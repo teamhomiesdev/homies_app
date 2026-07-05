@@ -9,28 +9,32 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useDispatch, useSelector } from 'react-redux'; // Added useSelector[cite: 4]
+import { useDispatch, useSelector } from 'react-redux'; 
 import {
   setAuthScreen,
   setLoginStatus,
   setRootScreen,
-} from '../../redux/slices/authSlice'; //[cite: 4]
+} from '../../redux/slices/authSlice'; 
 
-import colors from '../../theme/colors'; //[cite: 4]
-import CommonButton from '../../components/Button/Button'; //[cite: 4]
-import { getHelpsApi } from '../../services/authService'; //[cite: 4]
+import colors from '../../theme/colors'; 
+import CommonButton from '../../components/Button/Button'; 
+import { getHelpsApi } from '../../services/authService'; 
 import {
   updateProfileFieldsAction,
   fetchUserProfileAction,
-} from '../../redux/actions/authActions'; // Added fetchUserProfileAction[cite: 4]
+} from '../../redux/actions/authActions'; 
 
 interface HelpItem {
   id: string;
   help: string;
-} //[cite: 4]
+} 
 
-const HelpSelectionScreen = ({ navigation }: any) => {
+// Added route prop to access navigation route parameters
+const HelpSelectionScreen = ({ navigation, route }: any) => {
   const dispatch = useDispatch<any>();
+
+  // Check if user came from Profile screen
+  const isFromProfile = route.params?.from === 'Profile';
 
   // Extract userId to dynamically request the logged-in user's profile
   const user = useSelector((state: any) => state.auth.user);
@@ -39,7 +43,7 @@ const HelpSelectionScreen = ({ navigation }: any) => {
   const [categories, setCategories] = useState<HelpItem[]>([]);
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [isSaving, setIsSaving] = useState<boolean>(false); //[cite: 4]
+  const [isSaving, setIsSaving] = useState<boolean>(false); 
 
   useEffect(() => {
     const initializeScreenData = async () => {
@@ -88,7 +92,7 @@ const HelpSelectionScreen = ({ navigation }: any) => {
     };
 
     initializeScreenData();
-  }, [userId, dispatch]); //[cite: 4]
+  }, [userId, dispatch]); 
 
   const toggleSelection = (item: string) => {
     if (selectedItems.includes(item)) {
@@ -96,29 +100,34 @@ const HelpSelectionScreen = ({ navigation }: any) => {
     } else {
       setSelectedItems([...selectedItems, item]);
     }
-  }; //[cite: 4]
+  }; 
 
   const handleContinue = async () => {
     try {
-      setIsSaving(true); //[cite: 4]
+      setIsSaving(true); 
       const result = await dispatch(
         updateProfileFieldsAction({ helps: selectedItems }),
-      ); //[cite: 4]
+      ); 
 
       if (result && result.success) {
-        navigation.navigate('InterestSelection'); //[cite: 4]
+        // Conditional navigation routing logic
+        if (isFromProfile) {
+          navigation.goBack();
+        } else {
+          navigation.navigate('InterestSelection'); 
+        }
       } else {
         Alert.alert(
           'Update Failed',
           result.error || 'Unable to update selections.',
-        ); //[cite: 4]
+        ); 
       }
     } catch (err: any) {
-      Alert.alert('Error', err?.message || 'Something went wrong.'); //[cite: 4]
+      Alert.alert('Error', err?.message || 'Something went wrong.'); 
     } finally {
-      setIsSaving(false); //[cite: 4]
+      setIsSaving(false); 
     }
-  }; //[cite: 4]
+  }; 
 
   return (
     <SafeAreaView style={styles.container}>

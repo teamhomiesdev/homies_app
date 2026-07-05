@@ -9,25 +9,29 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useDispatch, useSelector } from 'react-redux'; // Added useSelector[cite: 5]
+import { useDispatch, useSelector } from 'react-redux'; 
 import {
   setAuthScreen,
   setLoginStatus,
   setRootScreen,
-} from '../../redux/slices/authSlice'; //[cite: 5]
+} from '../../redux/slices/authSlice'; 
 
-import colors from '../../theme/colors'; //[cite: 5]
-import CommonButton from '../../components/Button/Button'; //[cite: 5]
-import { getInterestsApi } from '../../services/authService'; //[cite: 5]
-import { updateProfileFieldsAction, fetchUserProfileAction } from '../../redux/actions/authActions'; // Added fetchUserProfileAction[cite: 5]
+import colors from '../../theme/colors'; 
+import CommonButton from '../../components/Button/Button'; 
+import { getInterestsApi } from '../../services/authService'; 
+import { updateProfileFieldsAction, fetchUserProfileAction } from '../../redux/actions/authActions'; 
 
 interface InterestItem {
   id: string;
   interest: string;
-} //[cite: 5]
+} 
 
-const InterestSelectionScreen = ({ navigation }: any) => {
+// Added route prop to access navigation route parameters
+const InterestSelectionScreen = ({ navigation, route }: any) => {
   const dispatch = useDispatch<any>();
+
+  // Check if user came from Profile screen
+  const isFromProfile = route.params?.from === 'Profile';
 
   // Extract userId to dynamically request the logged-in user's profile
   const user = useSelector((state: any) => state.auth.user);
@@ -36,7 +40,7 @@ const InterestSelectionScreen = ({ navigation }: any) => {
   const [specializations, setSpecializations] = useState<InterestItem[]>([]);
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [isSaving, setIsSaving] = useState<boolean>(false); //[cite: 5]
+  const [isSaving, setIsSaving] = useState<boolean>(false); 
 
   useEffect(() => {
     const initializeScreenData = async () => {
@@ -77,7 +81,7 @@ const InterestSelectionScreen = ({ navigation }: any) => {
     };
 
     initializeScreenData();
-  }, [userId, dispatch]); //[cite: 5]
+  }, [userId, dispatch]); 
 
   const toggleSelection = (item: string) => {
     if (selectedItems.includes(item)) {
@@ -85,32 +89,37 @@ const InterestSelectionScreen = ({ navigation }: any) => {
     } else {
       setSelectedItems([...selectedItems, item]);
     }
-  }; //[cite: 5]
+  }; 
 
   const handleContinue = async () => {
     try {
-      setIsSaving(true); //[cite: 5]
+      setIsSaving(true); 
       const result = await dispatch(
         updateProfileFieldsAction({ interests: selectedItems }),
-      ); //[cite: 5]
+      ); 
 
       if (result && result.success) {
-        navigation.navigate('UserIdGenerated');
-        dispatch(setRootScreen('MainTabNavigator')); 
-        dispatch(setAuthScreen('Login'));
-        dispatch(setLoginStatus(true));
+        // Conditional navigation routing logic based on the origin screen
+        if (isFromProfile) {
+          navigation.goBack();
+        } else {
+          navigation.navigate('UserIdGenerated');
+          dispatch(setRootScreen('MainTabNavigator')); 
+          dispatch(setAuthScreen('Login'));
+          dispatch(setLoginStatus(true));
+        }
       } else {
         Alert.alert(
           'Update Failed',
           result.error || 'Unable to update configuration settings.',
-        ); //[cite: 5]
+        ); 
       }
     } catch (err: any) {
-      Alert.alert('Error', err?.message || 'Something went wrong.'); //[cite: 5]
+      Alert.alert('Error', err?.message || 'Something went wrong.'); 
     } finally {
-      setIsSaving(false); //[cite: 5]
+      setIsSaving(false); 
     }
-  }; //[cite: 5]
+  }; 
 
   return (
     <SafeAreaView style={styles.container}>

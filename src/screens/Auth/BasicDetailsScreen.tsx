@@ -21,13 +21,17 @@ const AGE_BRACKETS = ['18-24', '25-34', '35-44', '45-54', '55-64', '65+'];
 
 const BasicDetailsScreen = ({ navigation }: any) => {
   const dispatch = useDispatch<any>();
-  
+
   // Extract cached google profile details from store
-  const googleProfileCache = useSelector((state: any) => state.auth.googleProfileCache);
+  const googleProfileCache = useSelector(
+    (state: any) => state.auth.googleProfileCache,
+  );
 
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [activeTimeField, setActiveTimeField] = useState<'start' | 'end'>('start');
+  const [activeTimeField, setActiveTimeField] = useState<'start' | 'end'>(
+    'start',
+  );
 
   const [startHour, setStartHour] = useState(9);
   const [startMinute, setStartMinute] = useState(0);
@@ -50,8 +54,10 @@ const BasicDetailsScreen = ({ navigation }: any) => {
   // Dynamic state verification logic checking fields before letting users advance
   const isButtonDisabled = () => {
     if (step === 0) return !formData.age;
-    if (step === 1) return !formData.city || !formData.state || !formData.country;
-    if (step === 2) return !formData.mobileNumber || formData.mobileNumber.length < 10;
+    if (step === 1)
+      return !formData.city || !formData.state || !formData.country;
+    if (step === 2)
+      return !formData.mobileNumber || formData.mobileNumber.length < 10;
     if (step === 3) return !formData.profession;
     if (step === 4) return false; // Time selector wizard step is prefilled by default state values
     if (step === 5) return !formData.workDescription;
@@ -59,11 +65,15 @@ const BasicDetailsScreen = ({ navigation }: any) => {
   };
 
   // Helper date assembly logic to format a valid ISO Date string
-  const generateIsoTimestamp = (hour: number, minute: number, ampm: 'AM' | 'PM') => {
+  const generateIsoTimestamp = (
+    hour: number,
+    minute: number,
+    ampm: 'AM' | 'PM',
+  ) => {
     let hr24 = hour;
     if (ampm === 'PM' && hour !== 12) hr24 += 12;
     if (ampm === 'AM' && hour === 12) hr24 = 0;
-    
+
     const targetDate = new Date();
     targetDate.setHours(hr24, minute, 0, 0);
     return targetDate.toISOString();
@@ -76,10 +86,10 @@ const BasicDetailsScreen = ({ navigation }: any) => {
       setLoading(true);
       try {
         const payload = {
-          email: googleProfileCache?.email || "teamhomiesdev@mailinator.com",
-          platform: "google",
-          firstName: googleProfileCache?.firstName || "Vasanth",
-          dob: "2008-03-11T06:35:00.000Z", // Static requirement placeholder
+          email: googleProfileCache?.email || 'teamhomiesdev@mailinator.com',
+          platform: 'google',
+          firstName: googleProfileCache?.firstName || 'Vasanth',
+          dob: '2008-03-11T06:35:00.000Z', // Static requirement placeholder
           city: formData.city,
           state: formData.state,
           country: formData.country,
@@ -94,16 +104,30 @@ const BasicDetailsScreen = ({ navigation }: any) => {
 
         if (result.success) {
           // Fire success toast notification once basic profiling wraps up
-          showToast("Basic details completed! Registration successful.", "success", 3500);
-          
+          showToast(
+            'Basic details completed! Registration successful.',
+            'success',
+            3500,
+          );
+
           // Navigates directly to the dynamic landing screen calculated inside Redux action conditional checks
           navigation.navigate(result.targetScreen);
         } else {
-          showToast(result.error || 'Failed to complete registration onboarding.', "error");
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'Login' }],
+          });
+          showToast(
+            result.error || 'Failed to complete registration onboarding.',
+            'error',
+          );
         }
       } catch (err: any) {
         setLoading(false);
-        showToast(err.message || 'An unexpected networking problem occurred.', "error");
+        showToast(
+          err.message || 'An unexpected networking problem occurred.',
+          'error',
+        );
       }
     }
   };
@@ -118,17 +142,49 @@ const BasicDetailsScreen = ({ navigation }: any) => {
 
   const adjustHour = (type: 'up' | 'down') => {
     if (activeTimeField === 'start') {
-      setStartHour(prev => (type === 'up' ? (prev === 12 ? 1 : prev + 1) : (prev === 1 ? 12 : prev - 1)));
+      setStartHour(prev =>
+        type === 'up'
+          ? prev === 12
+            ? 1
+            : prev + 1
+          : prev === 1
+          ? 12
+          : prev - 1,
+      );
     } else {
-      setEndHour(prev => (type === 'up' ? (prev === 12 ? 1 : prev + 1) : (prev === 1 ? 12 : prev - 1)));
+      setEndHour(prev =>
+        type === 'up'
+          ? prev === 12
+            ? 1
+            : prev + 1
+          : prev === 1
+          ? 12
+          : prev - 1,
+      );
     }
   };
 
   const adjustMinute = (type: 'up' | 'down') => {
     if (activeTimeField === 'start') {
-      setStartMinute(prev => (type === 'up' ? (prev === 59 ? 0 : prev + 1) : (prev === 0 ? 59 : prev - 1)));
+      setStartMinute(prev =>
+        type === 'up'
+          ? prev === 59
+            ? 0
+            : prev + 1
+          : prev === 0
+          ? 59
+          : prev - 1,
+      );
     } else {
-      setEndMinute(prev => (type === 'up' ? (prev === 59 ? 0 : prev + 1) : (prev === 0 ? 59 : prev - 1)));
+      setEndMinute(prev =>
+        type === 'up'
+          ? prev === 59
+            ? 0
+            : prev + 1
+          : prev === 0
+          ? 59
+          : prev - 1,
+      );
     }
   };
 
@@ -145,28 +201,51 @@ const BasicDetailsScreen = ({ navigation }: any) => {
   const currentAmPm = activeTimeField === 'start' ? startAmPm : endAmPm;
 
   return (
-    <SafeAreaView edges={['top', 'bottom', 'left', 'right']} style={styles.container}>
+    <SafeAreaView
+      edges={['top', 'bottom', 'left', 'right']}
+      style={styles.container}
+    >
       {/* Header Container */}
       <View style={styles.header}>
         <View style={styles.progressBarBg}>
-          <View style={[styles.progressBarFill, { width: `${((step + 1) / 6) * 100}%` }]} />
+          <View
+            style={[
+              styles.progressBarFill,
+              { width: `${((step + 1) / 6) * 100}%` },
+            ]}
+          />
         </View>
         <Text style={styles.stepIndicator}>{step + 1}/6</Text>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
         {step === 0 && (
           <View style={styles.stepContainer}>
             <Text style={styles.title}>What's your age bracket?</Text>
-            <Text style={styles.subtitle}>This helps us customize your ecosystem view.</Text>
+            <Text style={styles.subtitle}>
+              This helps us customize your ecosystem view.
+            </Text>
             <View style={styles.ageGrid}>
               {AGE_BRACKETS.map(item => (
                 <TouchableOpacity
                   key={item}
-                  style={[styles.ageCard, formData.age === item && styles.ageCardActive]}
+                  style={[
+                    styles.ageCard,
+                    formData.age === item && styles.ageCardActive,
+                  ]}
                   onPress={() => setFormData({ ...formData, age: item })}
                 >
-                  <Text style={[styles.ageText, formData.age === item && styles.ageTextActive]}>{item}</Text>
+                  <Text
+                    style={[
+                      styles.ageText,
+                      formData.age === item && styles.ageTextActive,
+                    ]}
+                  >
+                    {item}
+                  </Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -176,7 +255,9 @@ const BasicDetailsScreen = ({ navigation }: any) => {
         {step === 1 && (
           <View style={styles.stepContainer}>
             <Text style={styles.title}>Where are you located?</Text>
-            <Text style={styles.subtitle}>Please provide your residential region attributes.</Text>
+            <Text style={styles.subtitle}>
+              Please provide your residential region attributes.
+            </Text>
             <Input
               placeholder="Country"
               value={formData.country}
@@ -201,13 +282,17 @@ const BasicDetailsScreen = ({ navigation }: any) => {
         {step === 2 && (
           <View style={styles.stepContainer}>
             <Text style={styles.title}>What's your mobile number?</Text>
-            <Text style={styles.subtitle}>Used securely to safeguard account operations.</Text>
+            <Text style={styles.subtitle}>
+              Used securely to safeguard account operations.
+            </Text>
             <Input
               placeholder="Mobile Number"
               value={formData.mobileNumber}
               keyboardType="phone-pad"
-              maxLength={15}
-              onChangeText={text => setFormData({ ...formData, mobileNumber: text })}
+              maxLength={10}
+              onChangeText={text =>
+                setFormData({ ...formData, mobileNumber: text })
+              }
               containerStyle={styles.inputMargin}
             />
           </View>
@@ -216,11 +301,15 @@ const BasicDetailsScreen = ({ navigation }: any) => {
         {step === 3 && (
           <View style={styles.stepContainer}>
             <Text style={styles.title}>What is your profession?</Text>
-            <Text style={styles.subtitle}>Let our network entities know what your job area is.</Text>
+            <Text style={styles.subtitle}>
+              Let our network entities know what your job area is.
+            </Text>
             <Input
               placeholder="Profession"
               value={formData.profession}
-              onChangeText={text => setFormData({ ...formData, profession: text })}
+              onChangeText={text =>
+                setFormData({ ...formData, profession: text })
+              }
               containerStyle={styles.inputMargin}
             />
           </View>
@@ -229,26 +318,36 @@ const BasicDetailsScreen = ({ navigation }: any) => {
         {step === 4 && (
           <View style={styles.stepContainer}>
             <Text style={styles.title}>Select your work timing</Text>
-            <Text style={styles.subtitle}>Configure active time boundaries for your availability.</Text>
-            
+            <Text style={styles.subtitle}>
+              Configure active time boundaries for your availability.
+            </Text>
+
             <View style={styles.timeTabsRow}>
               <TouchableOpacity
-                style={[styles.timeTab, activeTimeField === 'start' && styles.timeTabActive]}
+                style={[
+                  styles.timeTab,
+                  activeTimeField === 'start' && styles.timeTabActive,
+                ]}
                 onPress={() => setActiveTimeField('start')}
               >
                 <Text style={styles.timeLabel}>Start Time</Text>
                 <Text style={styles.timeValue}>
-                  {String(startHour).padStart(2, '0')}:{String(startMinute).padStart(2, '0')} {startAmPm}
+                  {String(startHour).padStart(2, '0')}:
+                  {String(startMinute).padStart(2, '0')} {startAmPm}
                 </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.timeTab, activeTimeField === 'end' && styles.timeTabActive]}
+                style={[
+                  styles.timeTab,
+                  activeTimeField === 'end' && styles.timeTabActive,
+                ]}
                 onPress={() => setActiveTimeField('end')}
               >
                 <Text style={styles.timeLabel}>End Time</Text>
                 <Text style={styles.timeValue}>
-                  {String(endHour).padStart(2, '0')}:{String(endMinute).padStart(2, '0')} {endAmPm}
+                  {String(endHour).padStart(2, '0')}:
+                  {String(endMinute).padStart(2, '0')} {endAmPm}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -256,11 +355,19 @@ const BasicDetailsScreen = ({ navigation }: any) => {
             {/* Time Picker Controls Widget */}
             <View style={styles.pickerWidget}>
               <View style={styles.pickerColumn}>
-                <TouchableOpacity style={styles.adjustBtn} onPress={() => adjustHour('up')}>
+                <TouchableOpacity
+                  style={styles.adjustBtn}
+                  onPress={() => adjustHour('up')}
+                >
                   <Text style={styles.adjustBtnText}>▲</Text>
                 </TouchableOpacity>
-                <Text style={styles.pickerNumber}>{String(currentHour).padStart(2, '0')}</Text>
-                <TouchableOpacity style={styles.adjustBtn} onPress={() => adjustHour('down')}>
+                <Text style={styles.pickerNumber}>
+                  {String(currentHour).padStart(2, '0')}
+                </Text>
+                <TouchableOpacity
+                  style={styles.adjustBtn}
+                  onPress={() => adjustHour('down')}
+                >
                   <Text style={styles.adjustBtnText}>▼</Text>
                 </TouchableOpacity>
               </View>
@@ -268,11 +375,19 @@ const BasicDetailsScreen = ({ navigation }: any) => {
               <Text style={styles.pickerSeparator}>:</Text>
 
               <View style={styles.pickerColumn}>
-                <TouchableOpacity style={styles.adjustBtn} onPress={() => adjustMinute('up')}>
+                <TouchableOpacity
+                  style={styles.adjustBtn}
+                  onPress={() => adjustMinute('up')}
+                >
                   <Text style={styles.adjustBtnText}>▲</Text>
                 </TouchableOpacity>
-                <Text style={styles.pickerNumber}>{String(currentMinute).padStart(2, '0')}</Text>
-                <TouchableOpacity style={styles.adjustBtn} onPress={() => adjustMinute('down')}>
+                <Text style={styles.pickerNumber}>
+                  {String(currentMinute).padStart(2, '0')}
+                </Text>
+                <TouchableOpacity
+                  style={styles.adjustBtn}
+                  onPress={() => adjustMinute('down')}
+                >
                   <Text style={styles.adjustBtnText}>▼</Text>
                 </TouchableOpacity>
               </View>
@@ -289,11 +404,15 @@ const BasicDetailsScreen = ({ navigation }: any) => {
         {step === 5 && (
           <View style={styles.stepContainer}>
             <Text style={styles.title}>Describe your type of work</Text>
-            <Text style={styles.subtitle}>Provide a short description of what you do daily.</Text>
+            <Text style={styles.subtitle}>
+              Provide a short description of what you do daily.
+            </Text>
             <Input
               placeholder="Type of work description..."
               value={formData.workDescription}
-              onChangeText={text => setFormData({ ...formData, workDescription: text })}
+              onChangeText={text =>
+                setFormData({ ...formData, workDescription: text })
+              }
               multiline={true}
             />
           </View>

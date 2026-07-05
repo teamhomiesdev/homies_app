@@ -5,6 +5,8 @@ import SplashScreen from '../screens/Splash/SplashScreen';
 import AuthNavigator from './AuthNavigator';
 import MainTabNavigator from './MainTabNavigator';
 import ChatWindowScreen from '../screens/Dashboard/ChatWindowScreen';
+import HelpSelectionScreen from '../screens/Auth/HelpSelectionScreen';
+import InterestSelectionScreen from '../screens/Auth/InterestSelectionScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -15,6 +17,11 @@ const AppNavigator = () => {
       <Stack.Screen name="AuthNavigator" component={AuthNavigator} />
       <Stack.Screen name="MainTabNavigator" component={MainTabNavigator} />
       <Stack.Screen name="ChatWindow" component={ChatWindowScreen} />
+      <Stack.Screen name="HelpSelection" component={HelpSelectionScreen} />
+      <Stack.Screen
+        name="InterestSelection"
+        component={InterestSelectionScreen}
+      />
     </Stack.Navigator>
   );
 };
