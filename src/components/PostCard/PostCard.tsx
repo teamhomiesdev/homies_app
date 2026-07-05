@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
 import {
   StyleSheet,
   Text,
@@ -8,6 +8,7 @@ import {
   Dimensions,
 } from 'react-native';
 import Video from 'react-native-video';
+import { useIsFocused } from '@react-navigation/native';
 import colors from '../../theme/colors';
 
 const { width } = Dimensions.get('window');
@@ -52,6 +53,7 @@ const PostCard: React.FC<PostCardProps> = ({
   onCommentPress,
   onLikePress,
 }) => {
+  const isScreenFocused = useIsFocused();
   const initials = post.name ? post.name.substring(0, 2).toUpperCase() : 'HO';
 
   return (
@@ -103,11 +105,11 @@ const PostCard: React.FC<PostCardProps> = ({
                   resizeMode="cover"
                   repeat={true}
                   muted={false}
-                  paused={!isActive} // Controlled globally by feed visibility
+                  paused={!isActive || !isScreenFocused} 
                   playInBackground={false}
                   playWhenInactive={false}
                   ignoreSilentSwitch="ignore"
-                  mixWithOthers="mix" // Prevents audio session contentions that trigger native crashes
+                  mixWithOthers="mix"
                 />
               );
             }
@@ -216,10 +218,10 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: '#000',
     marginBottom: 12,
-    position: 'relative', // Context for absolute tracking
+    position: 'relative',
   },
   videoAsset: {
-    position: 'absolute', // Absolute breaks it out of standard rendering flex-clashes
+    position: 'absolute',
     top: 0,
     left: 0,
     bottom: 0,
