@@ -27,7 +27,7 @@ export const postService = {
     return response.data;
   },
 
-  getPosts: async (page: number = 1, limit: number = 10, type: 'HELP' | 'SOCIAL' | 'TRUEEVENTS' = 'HELP'): Promise<any> => {
+  getPosts: async (page: number = 1, limit: number = 10, type: 'HELP' | 'SOCIAL' | 'TRUE_EVENTS' = 'HELP'): Promise<any> => {
     const response = await api.get('/posts', {
       params: { page, limit, type },
     });

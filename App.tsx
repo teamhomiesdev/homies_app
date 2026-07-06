@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -10,8 +10,18 @@ import { store, persistor } from './src/redux/store';
 
 // Import Toast and the global ref registration helper
 import { Toast, registerToastRef } from './src/components/Toast/Toast';
+import socketService from './src/services/socketService';
 
 const App = () => {
+useEffect(() => {
+  socketService.connect(); 
+console.log('Socket connected:', socketService.socket?.id);
+  return () => {
+    socketService.disconnect();
+    console.log('Socket disconnected');
+  };
+}, []);
+
   return (
     <Provider store={store}>
       <PersistGate loading={null} persistor={persistor}>

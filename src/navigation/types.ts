@@ -27,5 +27,7 @@ export type MainStackParamList = {
   ChatWindow: {
     conversationId: string;
     title: string;
+    expertId?: string;
+    fromTab: string;
   };
 };

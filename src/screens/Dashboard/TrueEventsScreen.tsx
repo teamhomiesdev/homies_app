@@ -45,7 +45,7 @@ const TrueEventsScreen = ({ navigation }: any) => {
         setLoadingMore(true);
       }
 
-      const json = await postService.getPosts(pageToFetch, 10, 'TRUEEVENTS');
+      const json = await postService.getPosts(pageToFetch, 10, 'TRUE_EVENTS');
 
       if (json && json.success && json.data?.posts) {
         if (isInitialRefresh) {
