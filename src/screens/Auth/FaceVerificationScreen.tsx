@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  Image,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -37,6 +39,8 @@ interface FaceVerificationScreenProps {
 }
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const BOX_WIDTH = SCREEN_WIDTH - 48;
+const BOX_HEIGHT = BOX_WIDTH * 1.25;
 
 const FaceVerificationScreen: React.FC<FaceVerificationScreenProps> = ({
   navigation,
@@ -50,6 +54,43 @@ const FaceVerificationScreen: React.FC<FaceVerificationScreenProps> = ({
   const [isCapturing, setIsCapturing] = useState<boolean>(false);
   const [base64Image, setBase64Image] = useState<string | null>(null);
   const photoOutput = usePhotoOutput();
+
+  // Animation value for the laser scanner line
+  const scanAnimation = useRef(new Animated.Value(0)).current;
+  const scanLoop = useRef<Animated.CompositeAnimation | null>(null);
+
+  // Trigger scanning line animation whenever a capture holds the frame
+  useEffect(() => {
+    if (isCapturing && base64Image) {
+      scanAnimation.setValue(0);
+      
+      // Infinite up & down sequence
+      scanLoop.current = Animated.loop(
+        Animated.sequence([
+          Animated.timing(scanAnimation, {
+            toValue: BOX_HEIGHT - 4, // Stop right at the bottom edge
+            duration: 1500,
+            useNativeDriver: true,
+          }),
+          Animated.timing(scanAnimation, {
+            toValue: 0,
+            duration: 1500,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      scanLoop.current.start();
+    } else {
+      if (scanLoop.current) {
+        scanLoop.current.stop();
+      }
+      scanAnimation.setValue(0);
+    }
+
+    return () => {
+      if (scanLoop.current) scanLoop.current.stop();
+    };
+  }, [isCapturing, base64Image]);
 
   const handleEnableCamera = async () => {
     const granted = await requestPermission();
@@ -86,45 +127,54 @@ const FaceVerificationScreen: React.FC<FaceVerificationScreenProps> = ({
   };
 
   const executeFaceVerification = async (base64Payload: string) => {
+    // await updateVerificationStatus({
+    //           id: userId,
+    //           isImageVerified: true,
+    //           isVoiceVerified: false,
+    //         });
+    //           showToast('Verification successful!', 'success', 4000);
+    //       navigation.navigate('HelpSelection');
+    //       dispatch(setRootScreen('AuthNavigator'));
+    //       dispatch(setAuthScreen('HelpSelection'));
+    //       dispatch(setLoginStatus(true));
+
     try {
       const response = await verifyFaceImage(base64Payload);
 
-      // A status 200 response will arrive here via Axios mapping to response.data
       if (response && response.success && response.data) {
         const { faces_detected, confidence, gender } = response.data;
         const detectedGender = gender?.toLowerCase();
 
-        // 1. Check if exactly one face is detected
         if (faces_detected !== 1) {
           showToast(
             `Verification failed: Expected 1 face, but detected ${faces_detected}.`,
             'error',
-            4000,
+            3000,
           );
+          setBase64Image(null); // Clear image on mismatch to let user retry
           return;
         }
 
-        // 2. Check if confidence score is above 0.75
         if (confidence <= 0.75) {
           showToast(
             `Verification failed: Low confidence score (${(confidence * 100).toFixed(1)}%). Please try again.`,
             'error',
-            4000,
+            3000,
           );
+          setBase64Image(null);
           return;
         }
 
-        // 3. Check if gender is strictly male
         if (detectedGender !== 'male') {
           showToast(
             'Verification failed: Only male users are permitted.',
             'error',
-            4000,
+            3000,
           );
+          setBase64Image(null);
           return;
         }
 
-        // 4. Update status modifications via the API layer if rules pass successfully
         try {
           await updateVerificationStatus({
             id: userId,
@@ -141,23 +191,23 @@ const FaceVerificationScreen: React.FC<FaceVerificationScreenProps> = ({
           showToast(
             `Status Error: ${patchErrorMessage}`,
             'error',
-            4000,
+            3000,
           );
+          setBase64Image(null);
           return; 
         }
 
-        // 5. Complete state updates and navigate
-        showToast('Verification successful!', 'success', 4000);
+        showToast('Verification successful!', 'success', 3000);
         navigation.navigate('HelpSelection');
         dispatch(setRootScreen('AuthNavigator'));
         dispatch(setAuthScreen('HelpSelection'));
         dispatch(setLoginStatus(true));
 
       } else {
-        showToast(response?.message || 'Verification failed.', 'error', 4000);
+        showToast(response?.message || 'Verification failed.', 'error', 3000);
+        setBase64Image(null);
       }
     } catch (error: any) {
-      // --- CAPTURE NON-200 / ERROR RETURN RESPONSES FROM API ---
       const serverErrorMessage = 
         error.response?.data?.message || 
         error.response?.data?.error;
@@ -171,8 +221,9 @@ const FaceVerificationScreen: React.FC<FaceVerificationScreenProps> = ({
       showToast(
         `Verification Error: ${finalErrorMessage}`,
         'error',
-        5000,
+        3000,
       );
+      setBase64Image(null); // Reset on error
     }
   };
 
@@ -189,9 +240,11 @@ const FaceVerificationScreen: React.FC<FaceVerificationScreenProps> = ({
       const photoPath = await photoInstance.saveToTemporaryFileAsync();
       const cleanedBase64 = await convertUriToBase64(photoPath);
 
+      // Freeze image screen display
       setBase64Image(cleanedBase64);
       photoInstance.dispose();
 
+      // Dispatch backend validation process while image stays held
       await executeFaceVerification(cleanedBase64);
     } catch (error: any) {
       Alert.alert('Error', 'Failed to capture photo. Please try again.');
@@ -208,13 +261,35 @@ const FaceVerificationScreen: React.FC<FaceVerificationScreenProps> = ({
 
       <View style={styles.cameraBoxContainer}>
         {hasPermission && device ? (
-          <Camera
-            ref={cameraRef}
-            style={StyleSheet.absoluteFill}
-            device={device}
-            isActive={true}
-            outputs={[photoOutput]}
-          />
+          <>
+            {/* Active Live Camera View */}
+            <Camera
+              ref={cameraRef}
+              style={StyleSheet.absoluteFill}
+              device={device}
+              isActive={!base64Image} // Pause camera feed once captured
+              outputs={[photoOutput]}
+            />
+
+            {/* Frozen captured image overlay */}
+            {base64Image && (
+              <Image 
+                source={{ uri: `data:image/jpeg;base64,${base64Image}` }} 
+                style={StyleSheet.absoluteFill}
+                resizeMode="cover"
+              />
+            )}
+
+            {/* Up and down scanning laser effect */}
+            {isCapturing && base64Image && (
+              <Animated.View 
+                style={[
+                  styles.scanLine, 
+                  { transform: [{ translateY: scanAnimation }] }
+                ]} 
+              />
+            )}
+          </>
         ) : (
           <View style={styles.permissionPlaceholder}>
             <Text style={styles.permissionText}>
@@ -234,15 +309,15 @@ const FaceVerificationScreen: React.FC<FaceVerificationScreenProps> = ({
 
       <View style={styles.footerContainer}>
         <Text style={styles.instructionText}>
-          Focus your face within the frame to verify your identity.
+          {base64Image ? 'Verifying identity details...' : 'Focus your face within the frame to verify your identity.'}
         </Text>
 
         <TouchableOpacity
-          disabled={!hasPermission || isCapturing}
+          disabled={!hasPermission || isCapturing || !!base64Image}
           onPress={handleCapturePhoto}
           style={[
             styles.shutterOuterCircle,
-            (!hasPermission || isCapturing) && { opacity: 0.4 },
+            (!hasPermission || isCapturing || !!base64Image) && { opacity: 0.4 },
           ]}
         >
           <View style={styles.shutterInnerCircle}>
@@ -275,14 +350,28 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   cameraBoxContainer: {
-    width: SCREEN_WIDTH - 48,
-    height: (SCREEN_WIDTH - 48) * 1.25,
+    width: BOX_WIDTH,
+    height: BOX_HEIGHT,
     backgroundColor: '#1C1C1E',
     borderRadius: 36,
     overflow: 'hidden',
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 20,
+    position: 'relative'
+  },
+  scanLine: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    height: 4,
+    backgroundColor: '#00E676', // Color matched matching your theme green
+    shadowColor: '#00E676',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 10,
+    elevation: 8,
   },
   permissionPlaceholder: {
     flex: 1,

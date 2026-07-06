@@ -6,6 +6,8 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
@@ -103,14 +105,11 @@ const BasicDetailsScreen = ({ navigation }: any) => {
         setLoading(false);
 
         if (result.success) {
-          // Fire success toast notification once basic profiling wraps up
           showToast(
             'Basic details completed! Registration successful.',
             'success',
-            3500,
+            3000,
           );
-
-          // Navigates directly to the dynamic landing screen calculated inside Redux action conditional checks
           navigation.navigate(result.targetScreen);
         } else {
           navigation.reset({
@@ -205,234 +204,246 @@ const BasicDetailsScreen = ({ navigation }: any) => {
       edges={['top', 'bottom', 'left', 'right']}
       style={styles.container}
     >
-      {/* Header Container */}
-      <View style={styles.header}>
-        <View style={styles.progressBarBg}>
-          <View
-            style={[
-              styles.progressBarFill,
-              { width: `${((step + 1) / 6) * 100}%` },
-            ]}
-          />
-        </View>
-        <Text style={styles.stepIndicator}>{step + 1}/6</Text>
-      </View>
-
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.container}
       >
-        {step === 0 && (
-          <View style={styles.stepContainer}>
-            <Text style={styles.title}>What's your age bracket?</Text>
-            <Text style={styles.subtitle}>
-              This helps us customize your ecosystem view.
-            </Text>
-            <View style={styles.ageGrid}>
-              {AGE_BRACKETS.map(item => (
-                <TouchableOpacity
-                  key={item}
-                  style={[
-                    styles.ageCard,
-                    formData.age === item && styles.ageCardActive,
-                  ]}
-                  onPress={() => setFormData({ ...formData, age: item })}
-                >
-                  <Text
+        {/* Header Container */}
+        <View style={styles.header}>
+          {step > 0 && (
+            <TouchableOpacity style={styles.backButton} onPress={handleBack}>
+              <Text style={styles.backButtonText}>←</Text>
+            </TouchableOpacity>
+          )}
+          <View style={styles.progressBarBg}>
+            <View
+              style={[
+                styles.progressBarFill,
+                { width: `${((step + 1) / 6) * 100}%` },
+              ]}
+            />
+          </View>
+          <Text style={styles.stepIndicator}>{step + 1}/6</Text>
+        </View>
+
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {step === 0 && (
+            <View style={styles.stepContainer}>
+              <Text style={styles.title}>What's your age bracket?</Text>
+              <Text style={styles.subtitle}>
+                This helps us customize your ecosystem view.
+              </Text>
+              <View style={styles.ageGrid}>
+                {AGE_BRACKETS.map(item => (
+                  <TouchableOpacity
+                    key={item}
                     style={[
-                      styles.ageText,
-                      formData.age === item && styles.ageTextActive,
+                      styles.ageCard,
+                      formData.age === item && styles.ageCardActive,
                     ]}
+                    onPress={() => setFormData({ ...formData, age: item })}
                   >
-                    {item}
+                    <Text
+                      style={[
+                        styles.ageText,
+                        formData.age === item && styles.ageTextActive,
+                      ]}
+                    >
+                      {item}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          )}
+
+          {step === 1 && (
+            <View style={styles.stepContainer}>
+              <Text style={styles.title}>Where are you located?</Text>
+              <Text style={styles.subtitle}>
+                Please provide your residential region attributes.
+              </Text>
+              <Input
+                placeholder="Country"
+                value={formData.country}
+                onChangeText={text => setFormData({ ...formData, country: text })}
+                containerStyle={styles.inputMargin}
+              />
+              <Input
+                placeholder="State"
+                value={formData.state}
+                onChangeText={text => setFormData({ ...formData, state: text })}
+                containerStyle={styles.inputMargin}
+              />
+              <Input
+                placeholder="City"
+                value={formData.city}
+                onChangeText={text => setFormData({ ...formData, city: text })}
+                containerStyle={styles.inputMargin}
+              />
+            </View>
+          )}
+
+          {step === 2 && (
+            <View style={styles.stepContainer}>
+              <Text style={styles.title}>What's your mobile number?</Text>
+              <Text style={styles.subtitle}>
+                Used securely to safeguard account operations.
+              </Text>
+              <Input
+                placeholder="Mobile Number"
+                value={formData.mobileNumber}
+                keyboardType="phone-pad"
+                maxLength={10}
+                onChangeText={text => {
+                  const numericText = text.replace(/[^0-9]/g, '');
+                  setFormData({ ...formData, mobileNumber: numericText });
+                }}
+                containerStyle={styles.inputMargin}
+              />
+            </View>
+          )}
+
+          {step === 3 && (
+            <View style={styles.stepContainer}>
+              <Text style={styles.title}>What is your profession?</Text>
+              <Text style={styles.subtitle}>
+                Let our network entities know what your job area is.
+              </Text>
+              <Input
+                placeholder="Profession"
+                value={formData.profession}
+                onChangeText={text =>
+                  setFormData({ ...formData, profession: text })
+                }
+                containerStyle={styles.inputMargin}
+              />
+            </View>
+          )}
+
+          {step === 4 && (
+            <View style={styles.stepContainer}>
+              <Text style={styles.title}>Select your work timing</Text>
+              <Text style={styles.subtitle}>
+                Configure active time boundaries for your availability.
+              </Text>
+
+              <View style={styles.timeTabsRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.timeTab,
+                    activeTimeField === 'start' && styles.timeTabActive,
+                  ]}
+                  onPress={() => setActiveTimeField('start')}
+                >
+                  <Text style={styles.timeLabel}>Start Time</Text>
+                  <Text style={styles.timeValue}>
+                    {String(startHour).padStart(2, '0')}:
+                    {String(startMinute).padStart(2, '0')} {startAmPm}
                   </Text>
                 </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        )}
 
-        {step === 1 && (
-          <View style={styles.stepContainer}>
-            <Text style={styles.title}>Where are you located?</Text>
-            <Text style={styles.subtitle}>
-              Please provide your residential region attributes.
-            </Text>
-            <Input
-              placeholder="Country"
-              value={formData.country}
-              onChangeText={text => setFormData({ ...formData, country: text })}
-              containerStyle={styles.inputMargin}
-            />
-            <Input
-              placeholder="State"
-              value={formData.state}
-              onChangeText={text => setFormData({ ...formData, state: text })}
-              containerStyle={styles.inputMargin}
-            />
-            <Input
-              placeholder="City"
-              value={formData.city}
-              onChangeText={text => setFormData({ ...formData, city: text })}
-              containerStyle={styles.inputMargin}
-            />
-          </View>
-        )}
-
-        {step === 2 && (
-          <View style={styles.stepContainer}>
-            <Text style={styles.title}>What's your mobile number?</Text>
-            <Text style={styles.subtitle}>
-              Used securely to safeguard account operations.
-            </Text>
-            <Input
-              placeholder="Mobile Number"
-              value={formData.mobileNumber}
-              keyboardType="phone-pad"
-              maxLength={10}
-              onChangeText={text =>
-                setFormData({ ...formData, mobileNumber: text })
-              }
-              containerStyle={styles.inputMargin}
-            />
-          </View>
-        )}
-
-        {step === 3 && (
-          <View style={styles.stepContainer}>
-            <Text style={styles.title}>What is your profession?</Text>
-            <Text style={styles.subtitle}>
-              Let our network entities know what your job area is.
-            </Text>
-            <Input
-              placeholder="Profession"
-              value={formData.profession}
-              onChangeText={text =>
-                setFormData({ ...formData, profession: text })
-              }
-              containerStyle={styles.inputMargin}
-            />
-          </View>
-        )}
-
-        {step === 4 && (
-          <View style={styles.stepContainer}>
-            <Text style={styles.title}>Select your work timing</Text>
-            <Text style={styles.subtitle}>
-              Configure active time boundaries for your availability.
-            </Text>
-
-            <View style={styles.timeTabsRow}>
-              <TouchableOpacity
-                style={[
-                  styles.timeTab,
-                  activeTimeField === 'start' && styles.timeTabActive,
-                ]}
-                onPress={() => setActiveTimeField('start')}
-              >
-                <Text style={styles.timeLabel}>Start Time</Text>
-                <Text style={styles.timeValue}>
-                  {String(startHour).padStart(2, '0')}:
-                  {String(startMinute).padStart(2, '0')} {startAmPm}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.timeTab,
-                  activeTimeField === 'end' && styles.timeTabActive,
-                ]}
-                onPress={() => setActiveTimeField('end')}
-              >
-                <Text style={styles.timeLabel}>End Time</Text>
-                <Text style={styles.timeValue}>
-                  {String(endHour).padStart(2, '0')}:
-                  {String(endMinute).padStart(2, '0')} {endAmPm}
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Time Picker Controls Widget */}
-            <View style={styles.pickerWidget}>
-              <View style={styles.pickerColumn}>
                 <TouchableOpacity
-                  style={styles.adjustBtn}
-                  onPress={() => adjustHour('up')}
+                  style={[
+                    styles.timeTab,
+                    activeTimeField === 'end' && styles.timeTabActive,
+                  ]}
+                  onPress={() => setActiveTimeField('end')}
                 >
-                  <Text style={styles.adjustBtnText}>▲</Text>
-                </TouchableOpacity>
-                <Text style={styles.pickerNumber}>
-                  {String(currentHour).padStart(2, '0')}
-                </Text>
-                <TouchableOpacity
-                  style={styles.adjustBtn}
-                  onPress={() => adjustHour('down')}
-                >
-                  <Text style={styles.adjustBtnText}>▼</Text>
+                  <Text style={styles.timeLabel}>End Time</Text>
+                  <Text style={styles.timeValue}>
+                    {String(endHour).padStart(2, '0')}:
+                    {String(endMinute).padStart(2, '0')} {endAmPm}
+                  </Text>
                 </TouchableOpacity>
               </View>
 
-              <Text style={styles.pickerSeparator}>:</Text>
+              {/* Time Picker Controls Widget */}
+              <View style={styles.pickerWidget}>
+                <View style={styles.pickerColumn}>
+                  <TouchableOpacity
+                    style={styles.adjustBtn}
+                    onPress={() => adjustHour('up')}
+                  >
+                    <Text style={styles.adjustBtnText}>▲</Text>
+                  </TouchableOpacity>
+                  <Text style={styles.pickerNumber}>
+                    {String(currentHour).padStart(2, '0')}
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.adjustBtn}
+                    onPress={() => adjustHour('down')}
+                  >
+                    <Text style={styles.adjustBtnText}>▼</Text>
+                  </TouchableOpacity>
+                </View>
 
-              <View style={styles.pickerColumn}>
-                <TouchableOpacity
-                  style={styles.adjustBtn}
-                  onPress={() => adjustMinute('up')}
-                >
-                  <Text style={styles.adjustBtnText}>▲</Text>
-                </TouchableOpacity>
-                <Text style={styles.pickerNumber}>
-                  {String(currentMinute).padStart(2, '0')}
-                </Text>
-                <TouchableOpacity
-                  style={styles.adjustBtn}
-                  onPress={() => adjustMinute('down')}
-                >
-                  <Text style={styles.adjustBtnText}>▼</Text>
-                </TouchableOpacity>
-              </View>
+                <Text style={styles.pickerSeparator}>:</Text>
 
-              <View style={styles.pickerColumn}>
-                <TouchableOpacity style={styles.ampmBtn} onPress={toggleAmPm}>
-                  <Text style={styles.ampmBtnText}>{currentAmPm}</Text>
-                </TouchableOpacity>
+                <View style={styles.pickerColumn}>
+                  <TouchableOpacity
+                    style={styles.adjustBtn}
+                    onPress={() => adjustMinute('up')}
+                  >
+                    <Text style={styles.adjustBtnText}>▲</Text>
+                  </TouchableOpacity>
+                  <Text style={styles.pickerNumber}>
+                    {String(currentMinute).padStart(2, '0')}
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.adjustBtn}
+                    onPress={() => adjustMinute('down')}
+                  >
+                    <Text style={styles.adjustBtnText}>▼</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.pickerColumn}>
+                  <TouchableOpacity style={styles.ampmBtn} onPress={toggleAmPm}>
+                    <Text style={styles.ampmBtnText}>{currentAmPm}</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
-          </View>
-        )}
+          )}
 
-        {step === 5 && (
-          <View style={styles.stepContainer}>
-            <Text style={styles.title}>Describe your type of work</Text>
-            <Text style={styles.subtitle}>
-              Provide a short description of what you do daily.
-            </Text>
-            <Input
-              placeholder="Type of work description..."
-              value={formData.workDescription}
-              onChangeText={text =>
-                setFormData({ ...formData, workDescription: text })
-              }
-              multiline={true}
+          {step === 5 && (
+            <View style={styles.stepContainer}>
+              <Text style={styles.title}>Describe your type of work</Text>
+              <Text style={styles.subtitle}>
+                Provide a short description of what you do daily.
+              </Text>
+              <Input
+                placeholder="Type of work description..."
+                value={formData.workDescription}
+                onChangeText={text =>
+                  setFormData({ ...formData, workDescription: text })
+                }
+                multiline={true}
+              />
+            </View>
+          )}
+        </ScrollView>
+
+        {/* Footer Action Bar */}
+        <View style={styles.footer}>
+          {loading ? (
+            <ActivityIndicator size="large" color={colors.primary} />
+          ) : (
+            <CommonButton
+              text={step === 5 ? 'Finish' : 'Continue'}
+              onPress={handleNext}
+              disabled={isButtonDisabled()}
+              backgroundColor={isButtonDisabled() ? '#2E3B1E' : colors.primary}
+              textColor={isButtonDisabled() ? '#5A6350' : colors.black}
             />
-          </View>
-        )}
-      </ScrollView>
-
-      {/* Footer Action Bar */}
-      <View style={styles.footer}>
-        {loading ? (
-          <ActivityIndicator size="large" color={colors.primary} />
-        ) : (
-          <CommonButton
-            text={step === 5 ? 'Finish' : 'Continue'}
-            onPress={handleNext}
-            disabled={isButtonDisabled()}
-            backgroundColor={isButtonDisabled() ? '#2E3B1E' : colors.primary}
-            textColor={isButtonDisabled() ? '#5A6350' : colors.black}
-          />
-        )}
-      </View>
+          )}
+        </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
@@ -447,68 +458,69 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-    gap: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    gap: 10,
   },
   backButton: {
-    padding: 8,
+    paddingRight: 4,
   },
   backButtonText: {
     color: colors.white,
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: '700',
   },
   progressBarBg: {
     flex: 1,
-    height: 6,
+    height: 4,
     backgroundColor: '#1C1C1E',
-    borderRadius: 3,
+    borderRadius: 2,
     overflow: 'hidden',
   },
   progressBarFill: {
     height: '100%',
     backgroundColor: colors.primary,
-    borderRadius: 3,
+    borderRadius: 2,
   },
   stepIndicator: {
     color: colors.gray_2,
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
   },
   scrollContent: {
-    paddingHorizontal: 24,
-    paddingTop: 16,
-    paddingBottom: 40,
+    flexGrow: 1,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 16,
   },
   stepContainer: {
     flex: 1,
   },
   title: {
     color: colors.white,
-    fontSize: 32,
-    fontWeight: '800',
-    lineHeight: 40,
-    marginBottom: 12,
+    fontSize: 20, // Noticeably smaller layout presence
+    fontWeight: '700',
+    lineHeight: 26,
+    marginBottom: 4,
   },
   subtitle: {
     color: colors.gray_2,
-    fontSize: 16,
-    lineHeight: 24,
-    marginBottom: 32,
+    fontSize: 13,
+    lineHeight: 18,
+    marginBottom: 16,
   },
   ageGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: 8, 
   },
   ageCard: {
     width: '48%',
     backgroundColor: '#121212',
     borderWidth: 1,
     borderColor: '#1C1C1E',
-    borderRadius: 16,
-    paddingVertical: 24,
+    borderRadius: 8,
+    paddingVertical: 10, // Drastically reduced from 15/24 to maximize layout layout space
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -518,25 +530,25 @@ const styles = StyleSheet.create({
   },
   ageText: {
     color: colors.gray_2,
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 14, 
+    fontWeight: '600',
   },
   ageTextActive: {
     color: colors.primary,
   },
   inputMargin: {
-    marginBottom: 16,
+    marginBottom: 10,
   },
   timeTabsRow: {
     flexDirection: 'row',
-    gap: 16,
-    marginBottom: 24,
+    gap: 10,
+    marginBottom: 12,
   },
   timeTab: {
     flex: 1,
     backgroundColor: '#121212',
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 8,
+    padding: 10,
     borderWidth: 1,
     borderColor: '#1C1C1E',
   },
@@ -546,63 +558,63 @@ const styles = StyleSheet.create({
   },
   timeLabel: {
     color: '#555559',
-    fontSize: 13,
+    fontSize: 11,
     fontWeight: '500',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   timeValue: {
     color: colors.white,
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: '700',
   },
   pickerWidget: {
     flexDirection: 'row',
     backgroundColor: '#121212',
-    borderRadius: 20,
-    padding: 24,
+    borderRadius: 12,
+    padding: 12,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: '#1C1C1E',
-    gap: 16,
+    gap: 10,
   },
   pickerColumn: {
     alignItems: 'center',
     justifyContent: 'center',
-    width: 60,
+    width: 44,
   },
   adjustBtn: {
-    padding: 8,
+    padding: 4,
   },
   adjustBtnText: {
     color: colors.primary,
-    fontSize: 18,
+    fontSize: 14,
   },
   pickerNumber: {
     color: colors.white,
-    fontSize: 32,
+    fontSize: 22,
     fontWeight: '700',
-    marginVertical: 4,
+    marginVertical: 2,
   },
   pickerSeparator: {
     color: colors.white,
-    fontSize: 32,
+    fontSize: 22,
     fontWeight: '700',
   },
   ampmBtn: {
     backgroundColor: '#1C1C1E',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
   },
   ampmBtnText: {
     color: colors.white,
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: '700',
   },
   footer: {
-    paddingHorizontal: 24,
-    paddingVertical: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderTopWidth: 1,
     borderTopColor: '#1C1C1E',
     backgroundColor: colors.black,

@@ -10,6 +10,7 @@ import {
   NativeSyntheticEvent,
   NativeScrollEvent,
   Alert,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch } from 'react-redux';
@@ -86,7 +87,7 @@ const RegisterScreen = ({ navigation }: any) => {
         }),
       );
 
-      showToast("Google Login Success! Please fill out your basic details to complete registration.", "success", 4000);
+      showToast("Google Login Success! Please fill out your basic details to complete registration.", "success", 3000);
       // Direct page navigation transition
       navigation.reset({
         index: 0,
@@ -147,32 +148,37 @@ const RegisterScreen = ({ navigation }: any) => {
         edges={['bottom', 'left', 'right']}
         style={styles.bottomContainer}
       >
-        <Text style={styles.title}>Join{'\n'}Us.</Text>
-        <Text style={styles.subtitle}>
-          Start your journey with just one click.
-        </Text>
-        <CommonButton
-          text="Register"
-          backgroundColor={colors.white}
-          textColor={colors.black}
-          leftIcon={<Google width={20} height={20} />}
-          style={styles.googleButtonCustom}
-          textStyle={styles.googleButtonTextCustom}
-          onPress={handleGoogleRegister}
-        />
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>Already have an account? </Text>
-          <TouchableOpacity
-            onPress={() =>
-              navigation.reset({
-                index: 0,
-                routes: [{ name: 'AuthNavigator' }],
-              })
-            }
-          >
-            <Text style={styles.loginText}>Log In</Text>
-          </TouchableOpacity>
-        </View>
+        <ScrollView
+          contentContainerStyle={styles.scrollContentContainer}
+          showsVerticalScrollIndicator={false}
+        >
+          <Text style={styles.title}>Join{'\n'}Us.</Text>
+          <Text style={styles.subtitle}>
+            Start your journey with just one click.
+          </Text>
+          <CommonButton
+            text="Register"
+            backgroundColor={colors.white}
+            textColor={colors.black}
+            leftIcon={<Google width={20} height={20} />}
+            style={styles.googleButtonCustom}
+            textStyle={styles.googleButtonTextCustom}
+            onPress={handleGoogleRegister}
+          />
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>Already have an account? </Text>
+            <TouchableOpacity
+              onPress={() =>
+                navigation.reset({
+                  index: 0,
+                  routes: [{ name: 'AuthNavigator' }],
+                })
+              }
+            >
+              <Text style={styles.loginText}>Log In</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
       </SafeAreaView>
     </View>
   );
@@ -201,9 +207,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.black_1,
     borderTopLeftRadius: 40,
     borderTopRightRadius: 40,
+    marginTop: -30,
+  },
+  scrollContentContainer: {
+    flexGrow: 1,
     paddingHorizontal: 28,
     paddingTop: 45,
-    marginTop: -30,
   },
   title: {
     color: colors.white,
@@ -220,15 +229,19 @@ const styles = StyleSheet.create({
   },
   googleButtonCustom: {
     marginTop: 40,
-    height: 64,
-    borderRadius: 25,
+    height: 54, // Reduced from 64
+    borderRadius: 20, // Adjusted down from 25 to match the new height
     elevation: 2,
     shadowColor: colors.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
   },
-  googleButtonTextCustom: { fontSize: 22, fontWeight: '700', marginLeft: 8 },
+  googleButtonTextCustom: { 
+    fontSize: 18, // Reduced from 22 for better proportions
+    fontWeight: '700', 
+    marginLeft: 8 
+  },
   footer: {
     marginTop: 'auto',
     marginBottom: 20,

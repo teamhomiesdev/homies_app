@@ -16,7 +16,6 @@ import colors from '../../theme/colors';
 
 const { width } = Dimensions.get('window');
 
-// FIXED MATH: Accounts for both SocialScreen layout padding (32) and PostCard card padding (32)
 const SLIDE_WIDTH = width - 64; 
 
 const PRIMARY_GREEN = colors.primary || '#688A3E';
@@ -62,6 +61,7 @@ const PostCard: React.FC<PostCardProps> = ({
 }) => {
   const isScreenFocused = useIsFocused();
   const [activeIndex, setActiveIndex] = useState(0);
+  const [isExpanded, setIsExpanded] = useState(false); // State for text expansion
   
   const initials = post.name ? post.name.substring(0, 2).toUpperCase() : 'HO';
 
@@ -93,9 +93,23 @@ const PostCard: React.FC<PostCardProps> = ({
         </TouchableOpacity>
       </View>
 
-      {/* Main Context Text */}
+      {/* Main Context Text with Toggle */}
       {post.content ? (
-        <Text style={styles.contentBody}>{post.content}</Text>
+        <View style={styles.contentContainer}>
+          <Text 
+            style={styles.contentBody}
+            numberOfLines={isExpanded ? undefined : 3}
+          >
+            {post.content}
+          </Text>
+          {post.content.length > 100 && (
+            <TouchableOpacity onPress={() => setIsExpanded(!isExpanded)}>
+              <Text style={styles.toggleText}>
+                {isExpanded ? 'Show Less' : 'Show More'}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
       ) : null}
 
       {/* Hashtags Segment */}
@@ -147,7 +161,6 @@ const PostCard: React.FC<PostCardProps> = ({
             ))}
           </ScrollView>
 
-          {/* Active Indicator Dots */}
           {post.media.length > 1 && (
             <View style={styles.paginationRow}>
               {post.media.map((_, index) => (
@@ -234,11 +247,19 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 2,
   },
+  contentContainer: {
+    marginBottom: 10,
+  },
   contentBody: {
     color: '#FFF',
     fontSize: 15,
     lineHeight: 22,
-    marginBottom: 10,
+  },
+  toggleText: {
+    color: PRIMARY_GREEN,
+    fontSize: 14,
+    fontWeight: '600',
+    marginTop: 4,
   },
   tagRow: {
     flexDirection: 'row',

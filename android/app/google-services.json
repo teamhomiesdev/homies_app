@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "511277179417-k9f4s48aclfmrb6ou0smhr490h52f8gg.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.homies.menkibaat",
+            "certificate_hash": "7de766251aae480f659039cb8ae0c546e86296c1"
+          }
+        },
+        {
           "client_id": "511277179417-lvokqjs7l0veedbchiuf1k4fo6jb1vfd.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {

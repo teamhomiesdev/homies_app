@@ -91,7 +91,7 @@ const LoginScreen = ({ navigation }: any) => {
 
       if (result && result.success) {
         // DISPLAY SUCCESS TOAST HERE MATCHING REGISTER SCREEN
-        showToast("Login successful!", "success", 4000);
+        showToast("Login successful!", "success", 3000);
 
         navigation.reset({
           index: 0,
@@ -213,23 +213,27 @@ const styles = StyleSheet.create({
   },
   title: {
     color: colors.white,
-    fontSize: 30,
+    fontSize: 25,
     fontWeight: '800',
-    lineHeight: 46,
+    lineHeight: 35,
     letterSpacing: 0.5,
   },
   subtitle: { color: colors.gray_2, fontSize: 16, marginTop: 20, lineHeight: 24 },
-  googleButtonCustom: {
+ googleButtonCustom: {
     marginTop: 40,
-    height: 64,
-    borderRadius: 25,
+    height: 54, // Reduced from 64
+    borderRadius: 20, // Adjusted down from 25 to match the new height
     elevation: 2,
     shadowColor: colors.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
   },
-  googleButtonTextCustom: { fontSize: 22, fontWeight: '700', marginLeft: 8 },
+  googleButtonTextCustom: { 
+    fontSize: 18, // Reduced from 22 for better proportions
+    fontWeight: '700', 
+    marginLeft: 8 
+  },
   footer: {
     marginTop: 'auto',
     marginBottom: 20,
