@@ -81,7 +81,7 @@ const HelpListScreen = ({ navigation }: any) => {
 
   // Profile picture or Name click handler
   const handleProfilePress = (userId: string, postId: string) => {
-    navigation.navigate('UserProfile', { userId, postId });
+    // navigation.navigate('UserProfile', { userId, postId });
   };
 
   // Comment icon click handler

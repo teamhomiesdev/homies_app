@@ -33,7 +33,7 @@ interface CommentData {
 }
 
 const PostDetailsScreen = ({ route, navigation }: any) => {
-     const user = useSelector((state: any) => state.auth.user);
+  const user = useSelector((state: any) => state.auth.user);
   const name = user?.name || '';
   const userId = user?.id || '';
   const insets = useSafeAreaInsets();
@@ -124,7 +124,7 @@ const PostDetailsScreen = ({ route, navigation }: any) => {
     }
   };
 
-const handlePostComment = async () => {
+  const handlePostComment = async () => {
     if (!commentText.trim() || submittingComment) return;
 
     try {
@@ -157,7 +157,6 @@ const handlePostComment = async () => {
 
         setComments((prev) => [fallbackNewComment, ...prev]);
 
-        // FIX: Pass both the parentCommentId AND the postId back up to the parent screen stack
         if (onCommentAdded) {
           onCommentAdded(parentCommentId, postId);
         }
@@ -212,20 +211,54 @@ const handlePostComment = async () => {
     }
   };
 
-const handleReplyPress = (commentId: string) => {
+  // NEW: Optimistic UI handler for commenting node likes
+  const handleCommentLikePress = async (commentId: string, currentStatus: boolean) => {
+    setComments((prevComments) =>
+      prevComments.map((c) =>
+        c.id === commentId
+          ? {
+              ...c,
+              isPatted: !currentStatus,
+              pats: currentStatus ? c.pats - 1 : c.pats + 1,
+            }
+          : c
+      )
+    );
+
+    try {
+      const json = await postService.toggleCommentLike(commentId);
+      if (!json || !json.success) {
+        throw new Error(json?.message || 'Failed to sync target comment like.');
+      }
+    } catch (error) {
+      console.error('Error toggling comment like:', error);
+      // Rollback to original state if request fails
+      setComments((prevComments) =>
+        prevComments.map((c) =>
+          c.id === commentId
+            ? {
+                ...c,
+                isPatted: currentStatus,
+                pats: currentStatus ? c.pats + 1 : c.pats - 1,
+              }
+            : c
+        )
+      );
+      Alert.alert('Error', 'Could not sync comment like status.');
+    }
+  };
+
+  const handleReplyPress = (commentId: string) => {
     navigation.push('PostDetails', {
       postId: postId,
       parentCommentId: commentId,
-      // FIX: Handle both inner thread reply increments and root post total counter updates
       onCommentAdded: (commentIdId: string, targetPostId?: string) => {
-        // 1. Increment the specific comment item reply counter
         setComments((prevComments) =>
           prevComments.map((c) =>
             c.id === commentIdId ? { ...c, repliesCount: c.repliesCount + 1 } : c
           )
         );
 
-        // 2. Increment the top root post card counter displayed at the header
         if (targetPostId && post) {
           setPost((prevPost) => 
             prevPost ? { ...prevPost, totalComments: prevPost.totalComments + 1 } : null
@@ -254,7 +287,15 @@ const handleReplyPress = (commentId: string) => {
         <Text style={styles.commentContent}>{item.content}</Text>
 
         <View style={styles.commentFooter}>
-          <Text style={styles.patsCounter}>👍 {item.pats}</Text>
+          {/* UPDATED: Wrapped in a TouchableOpacity to enable liking comments */}
+          <TouchableOpacity 
+            style={styles.likeCommentButton}
+            onPress={() => handleCommentLikePress(item.id, item.isPatted)}
+          >
+            <Text style={[styles.patsCounter, item.isPatted && styles.likedPatsCounter]}>
+              👍 {item.pats}
+            </Text>
+          </TouchableOpacity>
           
           {!parentCommentId && (
             <TouchableOpacity 
@@ -485,9 +526,17 @@ const styles = StyleSheet.create({
     borderTopWidth: 0.5,
     borderTopColor: '#2C2C2E',
   },
+  likeCommentButton: {
+    paddingVertical: 4,
+    paddingRight: 12,
+  },
   patsCounter: {
     color: TEXT_MUTED,
     fontSize: 12,
+  },
+  likedPatsCounter: {
+    color: PRIMARY_GREEN,
+    fontWeight: '600',
   },
   replyButton: {
     backgroundColor: '#2C2C2E',

@@ -64,4 +64,9 @@ export const postService = {
     const response = await api.post('/comments', payload);
     return response.data;
   },
+
+  toggleCommentLike: async (commentId: string): Promise<any> => {
+    const response = await api.post(`/comments/${commentId}/toggle-like`);
+    return response.data;
+  },
 };
