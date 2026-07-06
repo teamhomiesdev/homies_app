@@ -101,3 +101,13 @@ To learn more about React Native, take a look at the following resources:
 Impoooooooooooooooooo
 1. Face verification la skip pannatha thookanum
 2. userService la const response = await api.get(`/users/experts?page=${page}&expert=${expert}&limit=10`);
+3. // await updateVerificationStatus({
+      //         id: userId,
+      //         isImageVerified: true,
+      //         isVoiceVerified: false,
+      //       });
+      //         showToast('Verification successful!', 'success', 4000);
+      //     navigation.navigate('HelpSelection');
+      //     dispatch(setRootScreen('AuthNavigator'));
+      //     dispatch(setAuthScreen('HelpSelection'));
+      //     dispatch(setLoginStatus(true));
