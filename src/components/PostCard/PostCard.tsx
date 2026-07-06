@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   StyleSheet,
   Text,
@@ -6,12 +6,19 @@ import {
   Image,
   TouchableOpacity,
   Dimensions,
+  ScrollView,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
 } from 'react-native';
 import Video from 'react-native-video';
 import { useIsFocused } from '@react-navigation/native';
 import colors from '../../theme/colors';
 
 const { width } = Dimensions.get('window');
+
+// FIXED MATH: Accounts for both SocialScreen layout padding (32) and PostCard card padding (32)
+const SLIDE_WIDTH = width - 64; 
+
 const PRIMARY_GREEN = colors.primary || '#688A3E';
 const SURFACE_COLOR = colors.gray_4 || '#1C1C1E';
 const TEXT_MUTED = colors.gray_2 || '#8A8A8E';
@@ -54,7 +61,17 @@ const PostCard: React.FC<PostCardProps> = ({
   onLikePress,
 }) => {
   const isScreenFocused = useIsFocused();
+  const [activeIndex, setActiveIndex] = useState(0);
+  
   const initials = post.name ? post.name.substring(0, 2).toUpperCase() : 'HO';
+
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const scrollOffset = event.nativeEvent.contentOffset.x;
+    const index = Math.round(scrollOffset / SLIDE_WIDTH);
+    if (index !== activeIndex) {
+      setActiveIndex(index);
+    }
+  };
 
   return (
     <View style={styles.cardContainer}>
@@ -92,36 +109,58 @@ const PostCard: React.FC<PostCardProps> = ({
         </View>
       )}
 
-      {/* Media Attachments Section */}
+      {/* Media Scrollable Block */}
       {post.media && post.media.length > 0 && (
         <View style={styles.mediaContainer}>
-          {post.media.map((item) => {
-            if (item.type && item.type.startsWith('video')) {
-              return (
-                <Video
-                  key={item._id}
-                  source={{ uri: item.uri }}
-                  style={styles.videoAsset}
-                  resizeMode="cover"
-                  repeat={true}
-                  muted={false}
-                  paused={!isActive || !isScreenFocused} 
-                  playInBackground={false}
-                  playWhenInactive={false}
-                  ignoreSilentSwitch="ignore"
-                  mixWithOthers="mix"
+          <ScrollView
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onScroll={handleScroll}
+            scrollEventThrottle={16}
+            bounces={false}
+            style={styles.scrollViewStyle}
+          >
+            {post.media.map((item, index) => (
+              <View key={item._id} style={styles.slide}>
+                {item.type && item.type.startsWith('video') ? (
+                  <Video
+                    source={{ uri: item.uri }}
+                    style={styles.mediaAsset}
+                    resizeMode="cover"
+                    repeat={true}
+                    muted={false}
+                    paused={!isActive || !isScreenFocused || activeIndex !== index} 
+                    playInBackground={false}
+                    playWhenInactive={false}
+                    ignoreSilentSwitch="ignore"
+                    mixWithOthers="mix"
+                  />
+                ) : (
+                  <Image
+                    source={{ uri: item.uri }}
+                    style={styles.mediaAsset}
+                    resizeMode="cover"
+                  />
+                )}
+              </View>
+            ))}
+          </ScrollView>
+
+          {/* Active Indicator Dots */}
+          {post.media.length > 1 && (
+            <View style={styles.paginationRow}>
+              {post.media.map((_, index) => (
+                <View
+                  key={index}
+                  style={[
+                    styles.dot,
+                    activeIndex === index ? styles.activeDot : styles.inactiveDot,
+                  ]}
                 />
-              );
-            }
-            return (
-              <Image
-                key={item._id}
-                source={{ uri: item.uri }}
-                style={styles.imageAsset}
-                resizeMode="cover"
-              />
-            );
-          })}
+              ))}
+            </View>
+          )}
         </View>
       )}
 
@@ -212,24 +251,46 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   mediaContainer: {
-    width: '100%',
+    width: SLIDE_WIDTH,
     height: 250,
     borderRadius: 12,
     overflow: 'hidden',
     backgroundColor: '#000',
     marginBottom: 12,
-    position: 'relative',
   },
-  videoAsset: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    bottom: 0,
-    right: 0,
+  scrollViewStyle: {
+    width: SLIDE_WIDTH,
+    height: 250,
   },
-  imageAsset: {
+  slide: {
+    width: SLIDE_WIDTH,
+    height: 250,
+  },
+  mediaAsset: {
     width: '100%',
     height: '100%',
+  },
+  paginationRow: {
+    position: 'absolute',
+    bottom: 12,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  dot: {
+    height: 6,
+    borderRadius: 3,
+    marginHorizontal: 4,
+  },
+  activeDot: {
+    width: 14,
+    backgroundColor: PRIMARY_GREEN,
+  },
+  inactiveDot: {
+    width: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.4)',
   },
   footerActionRow: {
     flexDirection: 'row',

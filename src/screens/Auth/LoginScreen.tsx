@@ -30,7 +30,7 @@ import { showToast } from '../../components/Toast/Toast';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const CAROUSEL_DATA = [
-  { id: '1', image: images.loginBanner },
+  { id: '1', image: images.loginBanner_1 },
   { id: '2', image: images.loginBanner }, 
 ];
 

@@ -18,14 +18,12 @@ import {
 import colors from '../../theme/colors';
 import CommonButton from '../../components/Button/Button';
 
-// --- REDUX, SERVICES & TOAST IMPORTS ---
 import { useDispatch, useSelector } from 'react-redux';
 import {
   setRootScreen,
   setAuthScreen,
   setLoginStatus,
 } from '../../redux/slices/authSlice';
-// Cleanly importing both required backend services
 import {
   verifyFaceImage,
   updateVerificationStatus,
@@ -44,8 +42,8 @@ const FaceVerificationScreen: React.FC<FaceVerificationScreenProps> = ({
   navigation,
 }) => {
   const dispatch = useDispatch();
-   const user = useSelector((state: any) => state.auth.user);
-    const userId = user?._id || user?.id;
+  const user = useSelector((state: any) => state.auth.user);
+  const userId = user?._id || user?.id;
   const cameraRef = useRef<Camera>(null);
   const device = useCameraDevice('front');
   const { hasPermission, requestPermission } = useCameraPermission();
@@ -87,67 +85,77 @@ const FaceVerificationScreen: React.FC<FaceVerificationScreenProps> = ({
     });
   };
 
-  // Modernized pipeline handling consecutive dependent API chains safely
   const executeFaceVerification = async (base64Payload: string) => {
-      await updateVerificationStatus({
+    try {
+      const response = await verifyFaceImage(base64Payload);
+
+      if (response && response.success && response.data) {
+        const detectedGender = response.data.gender?.toLowerCase();
+
+        // 1. Strict Face Verification Rules Check
+        if (detectedGender === 'male') {
+          // 2. Call PATCH status modification via centralized API layer
+          try {
+            await updateVerificationStatus({
               id: userId,
               isImageVerified: true,
               isVoiceVerified: false,
             });
-              showToast('Verification successful!', 'success', 4000);
+          } catch (patchError: any) {
+          
+            
+            // Extract error message safely from the patch response as well
+            const patchErrorMessage = 
+              patchError.response?.data?.message || 
+              patchError.response?.data?.error || 
+              patchError.message || 
+              'Failed to update verification records. Please try again.';
+
+            showToast(
+              `Status Error: ${patchErrorMessage}`,
+              'error',
+              4000,
+            );
+            return; // Aborts process; user will not be authenticated or redirected
+          }
+
+          // 3. Complete State updates if and only if both endpoints passed smoothly
+          showToast('Verification successful!', 'success', 4000);
           navigation.navigate('HelpSelection');
           dispatch(setRootScreen('AuthNavigator'));
           dispatch(setAuthScreen('HelpSelection'));
           dispatch(setLoginStatus(true));
-    // try {
-    //   const response = await verifyFaceImage(base64Payload);
+        } else {
+          showToast(
+            'Verification failed: Only male users are permitted.',
+            'error',
+            4000,
+          );
+        }
+      } else {
+        showToast(response?.message || 'Verification failed.', 'error', 4000);
+      }
+    } catch (error: any) {
+  
+      
+      // --- EXTRACT PROPER VALIDATION MESSAGE FROM AXIOS ERRORS ---
+      // This checks error.response.data first, mapping directly to your backend response structure
+      const serverErrorMessage = 
+        error.response?.data?.message || 
+        error.response?.data?.error;
 
-    //   if (response && response.success && response.data) {
-    //     const detectedGender = response.data.gender?.toLowerCase();
+      const fallbackMessage = 
+        error.message || 
+        'Network error or request timed out. Please try again.';
 
-    //     // 1. Strict Face Verification Rules Check
-    //     if (detectedGender === 'male') {
-    //       // 2. Call PATCH status modification via your centralized API layer
-    //       try {
-    //         await updateVerificationStatus({
-    //           id: userId,
-    //           isImageVerified: true,
-    //           isVoiceVerified: false,
-    //         });
-    //       } catch (patchError) {
-    //         console.error('PATCH Verification Failed:', patchError);
-    //         showToast(
-    //           'Failed to update verification records. Please try again.',
-    //           'error',
-    //           4000,
-    //         );
-    //         return; // Aborts process; user will not be authenticated or redirected
-    //       }
+      const finalErrorMessage = serverErrorMessage || fallbackMessage;
 
-    //       // 3. Complete State updates if and only if both endpoints passed smoothly
-    //       showToast('Verification successful!', 'success', 4000);
-    //       navigation.navigate('HelpSelection');
-    //       dispatch(setRootScreen('AuthNavigator'));
-    //       dispatch(setAuthScreen('HelpSelection'));
-    //       dispatch(setLoginStatus(true));
-    //     } else {
-    //       showToast(
-    //         'Verification failed: Only male users are permitted.',
-    //         'error',
-    //         4000,
-    //       );
-    //     }
-    //   } else {
-    //     showToast(response?.message || 'Verification failed.', 'error', 4000);
-    //   }
-    // } catch (error: any) {
-    //   console.error('Verification Error:', error);
-    //   showToast(
-    //     'Network error or request timed out. Please try again.',
-    //     'error',
-    //     4000,
-    //   );
-    // }
+      showToast(
+        `Verification Error: ${finalErrorMessage}`,
+        'error',
+        5000, // Slightly longer duration to read validation details
+      );
+    }
   };
 
   const handleCapturePhoto = async () => {
@@ -168,7 +176,7 @@ const FaceVerificationScreen: React.FC<FaceVerificationScreenProps> = ({
 
       await executeFaceVerification(cleanedBase64);
     } catch (error: any) {
-      console.error('Error capturing photo:', error);
+    
       Alert.alert('Error', 'Failed to capture photo. Please try again.');
     } finally {
       setIsCapturing(false);
@@ -207,6 +215,7 @@ const FaceVerificationScreen: React.FC<FaceVerificationScreenProps> = ({
         )}
       </View>
 
+      {}
       <View style={styles.footerContainer}>
         <Text style={styles.instructionText}>
           Focus your face within the frame to verify your identity.
