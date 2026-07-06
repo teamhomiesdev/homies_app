@@ -89,57 +89,75 @@ const FaceVerificationScreen: React.FC<FaceVerificationScreenProps> = ({
     try {
       const response = await verifyFaceImage(base64Payload);
 
+      // A status 200 response will arrive here via Axios mapping to response.data
       if (response && response.success && response.data) {
-        const detectedGender = response.data.gender?.toLowerCase();
+        const { faces_detected, confidence, gender } = response.data;
+        const detectedGender = gender?.toLowerCase();
 
-        // 1. Strict Face Verification Rules Check
-        if (detectedGender === 'male') {
-          // 2. Call PATCH status modification via centralized API layer
-          try {
-            await updateVerificationStatus({
-              id: userId,
-              isImageVerified: true,
-              isVoiceVerified: false,
-            });
-          } catch (patchError: any) {
-          
-            
-            // Extract error message safely from the patch response as well
-            const patchErrorMessage = 
-              patchError.response?.data?.message || 
-              patchError.response?.data?.error || 
-              patchError.message || 
-              'Failed to update verification records. Please try again.';
+        // 1. Check if exactly one face is detected
+        if (faces_detected !== 1) {
+          showToast(
+            `Verification failed: Expected 1 face, but detected ${faces_detected}.`,
+            'error',
+            4000,
+          );
+          return;
+        }
 
-            showToast(
-              `Status Error: ${patchErrorMessage}`,
-              'error',
-              4000,
-            );
-            return; // Aborts process; user will not be authenticated or redirected
-          }
+        // 2. Check if confidence score is above 0.75
+        if (confidence <= 0.75) {
+          showToast(
+            `Verification failed: Low confidence score (${(confidence * 100).toFixed(1)}%). Please try again.`,
+            'error',
+            4000,
+          );
+          return;
+        }
 
-          // 3. Complete State updates if and only if both endpoints passed smoothly
-          showToast('Verification successful!', 'success', 4000);
-          navigation.navigate('HelpSelection');
-          dispatch(setRootScreen('AuthNavigator'));
-          dispatch(setAuthScreen('HelpSelection'));
-          dispatch(setLoginStatus(true));
-        } else {
+        // 3. Check if gender is strictly male
+        if (detectedGender !== 'male') {
           showToast(
             'Verification failed: Only male users are permitted.',
             'error',
             4000,
           );
+          return;
         }
+
+        // 4. Update status modifications via the API layer if rules pass successfully
+        try {
+          await updateVerificationStatus({
+            id: userId,
+            isImageVerified: true,
+            isVoiceVerified: false,
+          });
+        } catch (patchError: any) {
+          const patchErrorMessage = 
+            patchError.response?.data?.message || 
+            patchError.response?.data?.error || 
+            patchError.message || 
+            'Failed to update verification records. Please try again.';
+
+          showToast(
+            `Status Error: ${patchErrorMessage}`,
+            'error',
+            4000,
+          );
+          return; 
+        }
+
+        // 5. Complete state updates and navigate
+        showToast('Verification successful!', 'success', 4000);
+        navigation.navigate('HelpSelection');
+        dispatch(setRootScreen('AuthNavigator'));
+        dispatch(setAuthScreen('HelpSelection'));
+        dispatch(setLoginStatus(true));
+
       } else {
         showToast(response?.message || 'Verification failed.', 'error', 4000);
       }
     } catch (error: any) {
-  
-      
-      // --- EXTRACT PROPER VALIDATION MESSAGE FROM AXIOS ERRORS ---
-      // This checks error.response.data first, mapping directly to your backend response structure
+      // --- CAPTURE NON-200 / ERROR RETURN RESPONSES FROM API ---
       const serverErrorMessage = 
         error.response?.data?.message || 
         error.response?.data?.error;
@@ -153,7 +171,7 @@ const FaceVerificationScreen: React.FC<FaceVerificationScreenProps> = ({
       showToast(
         `Verification Error: ${finalErrorMessage}`,
         'error',
-        5000, // Slightly longer duration to read validation details
+        5000,
       );
     }
   };
@@ -176,7 +194,6 @@ const FaceVerificationScreen: React.FC<FaceVerificationScreenProps> = ({
 
       await executeFaceVerification(cleanedBase64);
     } catch (error: any) {
-    
       Alert.alert('Error', 'Failed to capture photo. Please try again.');
     } finally {
       setIsCapturing(false);
@@ -215,7 +232,6 @@ const FaceVerificationScreen: React.FC<FaceVerificationScreenProps> = ({
         )}
       </View>
 
-      {}
       <View style={styles.footerContainer}>
         <Text style={styles.instructionText}>
           Focus your face within the frame to verify your identity.
