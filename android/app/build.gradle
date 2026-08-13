@@ -72,6 +72,15 @@ def enableProguardInReleaseBuilds = false
  */
 def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
 
+import groovy.json.JsonSlurper
+
+def getPackageJson() {
+    def inputFile = file('../../package.json')
+    return new JsonSlurper().parseText(inputFile.text)
+}
+
+def packageJson = getPackageJson()
+
 android {
     ndkVersion rootProject.ext.ndkVersion
     buildToolsVersion rootProject.ext.buildToolsVersion
@@ -82,8 +91,8 @@ android {
         applicationId "com.homies.menkibaat"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode packageJson.versionCode ? packageJson.versionCode.toInteger() : 1
+        versionName packageJson.version
     }
     signingConfigs {
         release {
